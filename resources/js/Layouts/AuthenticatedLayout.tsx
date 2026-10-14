@@ -39,8 +39,8 @@ export default function Authenticated({
                                 </NavLink>
                       
                                 <NavLink
-                                    href={route('notificaciones.index')}
-                                    active={route().current('notificaciones.index')} 
+                                    href={route('documentos.cargar')}
+                                    active={route().current('documentos.cargar')} 
                                 >
                                     Notificaciones
                                 </NavLink>
@@ -50,6 +50,16 @@ export default function Authenticated({
                                         Administrar Personal
                                     </NavLink>
                                 )}  
+
+                                {usuarioLogueado.role === 'administrador' && (
+                                    <NavLink 
+                                    href={route('catalogos.index')} 
+                                    active={route().current('catalogos.index')}
+                                    className={route().current('catalogos.index') ? 'text-[#9D2449] border-[#9D2449]' : ''}
+                                    >
+                                    Catálogos
+                                    </NavLink>
+                                )}
                             </div>
                         </div>
 
@@ -156,17 +166,28 @@ export default function Authenticated({
                         </ResponsiveNavLink>
 
                         <ResponsiveNavLink
-                            href={route('notificaciones.index')}
-                            active={route().current('notificaciones.index')}
+                            href={route('documentos.cargar')}
+                            active={route().current('documentos.cargar')}
                         >
                             Notificaciones
                         </ResponsiveNavLink>
 
                         {usuarioLogueado.role === 'administrador' && (
-                        <ResponsiveNavLink href={route('usuarios.index')} active={route().current('usuarios.index')}>
-                            Administrar Personal
-                        </ResponsiveNavLink>
+                            <ResponsiveNavLink href={route('usuarios.index')} active={route().current('usuarios.index')}>
+                                Administrar Personal
+                            </ResponsiveNavLink>
                         )}
+
+                        {usuarioLogueado.role === 'administrador' && (
+                            <ResponsiveNavLink 
+                            href={route('catalogos.index')} 
+                            active={route().current('catalogos.index')}
+                            >
+                            Catálogos
+                            </ResponsiveNavLink>
+                        )}
+
+
 
                     </div>
 

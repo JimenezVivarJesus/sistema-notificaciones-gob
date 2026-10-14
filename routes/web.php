@@ -2,10 +2,15 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\NotificacionController;
+use App\Http\Controllers\DocumentoController;
 use App\Http\Controllers\UsuarioController;
+use App\Http\Controllers\AreaController;
+use App\Http\Controllers\TipoDocumentoController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Models\Area;
+use App\Models\TipoDocumento;
 
 /*Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -18,9 +23,9 @@ use Inertia\Inertia;
 
 Route::redirect('/', '/login');
 
-Route::get('/dashboard', function () {
+/*Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+})->middleware(['auth', 'verified'])->name('dashboard');*/
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -31,6 +36,36 @@ Route::middleware('auth')->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::resource('notificaciones', NotificacionController::class);
     Route::resource('usuarios', UsuarioController::class);
+
+    Route::get('/dashboard', [DocumentoController::class, 'index'])->name('dashboard');
+
+    //Abre la pantalla independiente de carga individual y masiva
+    Route::get('/documentos/cargar', [DocumentoController::class, 'mostrarFormularioCarga'])->name('documentos.cargar');
+    
+    // Rutas de acciones de documentos
+    Route::post('/documentos', [DocumentoController::class, 'store'])->name('documentos.store');
+    Route::put('/documentos/{id}', [DocumentoController::class, 'update'])->name('documentos.update');
+    Route::delete('/documentos/{id}', [DocumentoController::class, 'destroy'])->name('documentos.destroy');
+    Route::post('/documentos/cargar-masivo', [DocumentoController::class, 'cargarMasivo'])->name('documentos.cargarMasivo');
+    Route::post('/documentos/asignar-masivo', [DocumentoController::class, 'asignarMasivo'])->name('documentos.asignarMasivo');
+
+    // Rutas de catálogos
+    Route::get('/catalogos', function () {
+        if (auth()->user()->role !== 'administrador') { abort(403); }
+        return Inertia::render('Catalogo/Index', [
+            'areas' => Area::orderBy('nombre', 'asc')->get(),
+            'tiposDocumento' => TipoDocumento::orderBy('nombre', 'asc')->get()
+        ]);
+    })->name('catalogos.index');
+
+    Route::post('/areas', [AreaController::class, 'store'])->name('areas.store');
+    Route::put('/areas/{id}', [AreaController::class, 'update'])->name('areas.update');
+    Route::delete('/areas/{id}', [AreaController::class, 'destroy'])->name('areas.destroy');
+
+    Route::post('/tipo-documentos', [TipoDocumentoController::class, 'store'])->name('tipoDocumentos.store');
+    Route::put('/tipo-documentos/{id}', [TipoDocumentoController::class, 'update'])->name('tipoDocumentos.update');
+    Route::delete('/tipo-documentos/{id}', [TipoDocumentoController::class, 'destroy'])->name('tipoDocumentos.destroy');
+
 });
 
 require __DIR__.'/auth.php';

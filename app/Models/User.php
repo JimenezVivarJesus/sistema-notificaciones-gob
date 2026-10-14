@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 
 class User extends Authenticatable
@@ -48,4 +49,21 @@ class User extends Authenticatable
     {
         return $this->hasMany(Notificacion::class);
     }
+
+    /**
+    * Relación: Un notificador tiene bajo su cargo actual muchos documentos pendientes.
+    */
+    public function documentosActuales(): HasMany
+    {
+        return $this->hasMany(Documento::class, 'user_id');
+    }
+
+    /**
+    * Relación: Un usuario ha estampado su firma y acciones en muchas filas de la bitácora.
+    */
+    public function accionesBitacora(): HasMany
+    {
+        return $this->hasMany(Bitacora::class, 'user_id');
+    }
+
 }
