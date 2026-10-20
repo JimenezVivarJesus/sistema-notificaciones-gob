@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Models\Area;
 use App\Models\TipoDocumento;
+use App\Http\Controllers\NotificadorController;
+
 
 /*Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -65,6 +67,15 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/tipo-documentos', [TipoDocumentoController::class, 'store'])->name('tipoDocumentos.store');
     Route::put('/tipo-documentos/{id}', [TipoDocumentoController::class, 'update'])->name('tipoDocumentos.update');
     Route::delete('/tipo-documentos/{id}', [TipoDocumentoController::class, 'destroy'])->name('tipoDocumentos.destroy');
+    // Ruta para consultar la ficha técnica y línea de tiempo de un oficio específico
+    Route::get('/documentos/{id}', [DocumentoController::class, 'show'])->name('documentos.show');
+
+    ////RUTAS PARA APP MOVIL/////
+    Route::get('/notificador/agenda', [NotificadorController::class, 'agenda'])->name('notificador.agenda');
+    // Ruta que recibe el formulario binario del notificador en territorio
+    Route::post('/documentos/{id}/registrar-visita', [DocumentoController::class, 'registrarVisita'])->name('documentos.registrarVisita');
+
+
 
 });
 

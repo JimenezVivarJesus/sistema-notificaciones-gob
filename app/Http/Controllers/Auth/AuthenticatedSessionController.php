@@ -33,6 +33,18 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        $usuarioLogueado = auth()->user();
+
+        if ($usuarioLogueado->role === 'administrador') {
+            // El Administrador va directo al panel de control de estadísticas.
+            return redirect()->route('dashboard');
+        } 
+    
+        if ($usuarioLogueado->role === 'notificador') {
+            // El Notificador de campo va directo a su lista de tareas táctil en el .apk móvil
+            return redirect()->route('notificador.agenda');
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 

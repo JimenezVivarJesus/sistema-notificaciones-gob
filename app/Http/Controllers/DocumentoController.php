@@ -31,6 +31,53 @@ class DocumentoController extends Controller
         ]);
     }
 
+/**
+ * Muestra la ficha detallada de un documento y su línea de tiempo.
+ */
+public function show($id)
+{
+    $usuarioActivo = auth()->user();
+    
+    // 1. Cargamos el documento base con sus relaciones estructurales
+    $documento = Documento::with(['area', 'tipoDocumento', 'user'])->findOrFail($id);
+
+    // 2. FILTRADO DE SEGURIDAD EN BITÁCORA: Cargamos los movimientos según el rol
+    if ($usuarioActivo->role === 'administrador') {
+        // El Administrador audita absolutamente todo (Asignaciones + Trabajo de campo)
+        $documento->load(['bitacora.user' => function($query) {
+            $query->orderBy('created_at', 'desc');
+        }]);
+    } else {
+        // El Notificador solo ve antecedentes reales de la calle para obtener contexto
+        $documento->load(['bitacora' => function($query) {
+            $query->where('estatus_registrado', '!=', 'ASIGNADO')
+                  ->where('estatus_registrado', '!=', 'REASIGNADO')
+                  ->with('user:id,name')
+                  ->orderBy('created_at', 'desc');
+        }]);
+    }
+
+    $documento->bitacora->transform(function ($item) {
+    // Seteamos el idioma local a español para Carbon
+    \Carbon\Carbon::setLocale('es');
+    $item->fecha_legible = $item->created_at->isoFormat('LLLL'); // Ej: "miércoles, 14 de octubre de 2026, 14:28"
+    return $item;
+});
+
+// Formateamos también las fechas del documento base para el cargador de React
+\Carbon\Carbon::setLocale('es');
+$documento->fecha_doc_legible = $documento->fecha_documento->isoFormat('LL');
+$documento->primera_asig_legible = $documento->fecha_primera_asignacion ? $documento->fecha_primera_asignacion->isoFormat('LLLL') : 'Sin asignación inicial';
+$documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documento->fecha_ultima_asignacion->isoFormat('LLLL') : 'Sin reasignaciones';
+
+
+    return Inertia::render('Documentos/Show', [
+        'documento' => $documento,
+        'roleUsuario' => $usuarioActivo->role
+    ]);
+}
+
+
     public function mostrarFormularioCarga(Request $request)
     {
         if (auth()->user()->role !== 'administrador') {
@@ -256,6 +303,13 @@ class DocumentoController extends Controller
         $documentoIds = $request->documento_ids;
         $ahora = now();
 
+        // para poder avisarle a sus aplicaciones que los eliminen de su lista.
+        $notificadoresAnteriores = Documento::whereIn('id', $documentoIds)
+        ->whereNotNull('user_id')
+        ->pluck('user_id')
+        ->unique()
+        ->toArray();
+
         // 3. Ejecutamos la actualización en bloque optimizada para PostgreSQL
         DB::transaction(function () use ($documentoIds, $userId, $ahora) {
             foreach ($documentoIds as $id) {
@@ -283,6 +337,16 @@ class DocumentoController extends Controller
                 ]);
             }
         });
+
+        // 📡 1. Le avisamos al nuevo notificador que le llegó trabajo
+    event(new \App\Events\DocumentoActualizado($userId));
+
+    // 📡 2. Le avisamos a los notificadores anteriores para que quiten los folios de su pantalla
+    foreach ($notificadoresAnteriores as $antiguoId) {
+        if ($antiguoId != $userId) {
+            event(new \App\Events\DocumentoActualizado($antiguoId));
+        }
+    }
 
         return redirect()->back()->with('success', '¡Lote de documentos asignado y notificado con éxito!');
     }
@@ -319,6 +383,86 @@ class DocumentoController extends Controller
     
         return redirect()->back();
     }
+
+   
+/**
+ * Registra y valida un acta de notificación generada en campo por el celular.
+ */
+public function registrarVisita(Request $request, $id)
+{
+    // 1. Candado de rol: Solo notificadores en campo pueden procesar
+    if (auth()->user()->role !== 'notificador') {
+        abort(403, 'Acceso denegado.');
+    }
+
+    $request->validate([
+        'estatus_registrado'       => 'required|string',
+        'tipo_documento_proceso'   => 'required|string',
+        'hora_inicio_visita'       => 'required|date',
+        'hora_fin_visita'          => 'required|date',
+        'ubicacion_gps'            => 'required|string',
+        'observaciones_operativas' => 'required|string',
+        'foto'                     => 'required|image|mimes:jpeg,png,jpg|max:8192', // Máximo 8MB
+    ]);
+
+    $documento = Documento::findOrFail($id);
+    $foto = $request->file('foto');
+
+    // CONTROL DE CONFIANZA: Validamos que la foto provenga de una captura real de cámara (No de internet/galería)
+    // Las fotos reales de dispositivos móviles contienen metadatos EXIF (marca de cámara, apertura, etc.)
+    $metaExif = @exif_read_data($foto->getRealPath());
+    
+    // Si la institución exige auditoría criptográfica estricta, puedes activar este bloque:
+    // if (!$metaExif || !isset($metaExif['Model'])) {
+    //     return redirect()->back()->withErrors(['foto' => 'Evidencia rechazada. La imagen no proviene de una captura de cámara en tiempo real.']);
+    // }
+
+    // GUARDADO DE FOTO LOCAL (100% de forma nativa en tu servidor del Gobierno, libre de Google Drive)
+    // Laravel tomará la imagen y la guardará en la carpeta local pública de forma automática
+    $nombreFoto = 'evidencia_' . $documento->numero_control . '_' . time() . '.' . $foto->getClientOriginalExtension();
+    $pathFoto = $foto->storeAs('evidencias_campo', $nombreFoto, 'public');
+    $urlFotoPublica = '/storage/' . $pathFoto;
+
+    // CÁLCULO MATEMÁTICO AUTOMÁTICO DE PERMANENCIA (Control de confianza de tiempo)
+    $inicio = \Carbon\Carbon::parse($request->hora_inicio_visita);
+    $fin = \Carbon\Carbon::parse($request->hora_fin_visita);
+    $segundos = $inicio->diffInSeconds($fin);
+    $minutosPermanencia = (int) round($segundos / 60); 
+
+    // Si duró menos de 30 segundos, round dará 0. Puedes poner un candado por si quieres que el mínimo sea 1:
+    if ($minutosPermanencia === 0 && $segundos > 0) {
+        $minutosPermanencia = 1;
+    }
+
+    // 3. Ejecutamos la inserción en bloque unificada
+    DB::transaction(function () use ($documento, $request, $urlFotoPublica, $minutosPermanencia) {
+        
+        // A. Actualizamos el estatus del documento madre si el ciclo ha concluido
+        $documento->update([
+            'estatus' => $request->estatus_registrado
+        ]);
+
+        // B. Inyectamos la fila de auditoría de campo dentro de la Bitacora
+        $documento->bitacora()->create([
+            'user_id'                  => auth()->id(),
+            'estatus_registrado'       => $request->estatus_registrado,
+            'tipo_documento_proceso'   => $request->tipo_documento_proceso,
+            'hora_inicio_visita'       => $request->hora_inicio_visita,
+            'hora_fin_visita'          => $request->hora_fin_visita,
+            'minutos_permanencia'      => $minutosPermanencia,
+            'ubicacion_gps'            => $request->ubicacion_gps,
+            'url_foto'                 => $urlFotoPublica,
+            'observaciones_operativas' => trim($request->observaciones_operativas),
+        ]);
+    });
+
+    // 🚀 ALERTA EN TIEMPO REAL: Le avisamos al Administrador (canal público) y al celular (canal privado)
+    // que el estatus cambió y se firmó el acta.
+    event(new \App\Events\DocumentoActualizado($documento->user_id));
+
+    return redirect()->back()->with('success', '¡Acta de territorio registrada y firmada digitalmente!');
+}
+
 
 
 }

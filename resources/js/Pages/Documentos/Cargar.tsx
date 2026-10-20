@@ -1,6 +1,6 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, useForm, Link, router } from "@inertiajs/react";
-import React, { useState } from "react";
+import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from "react-hot-toast";
 
 interface Props {
@@ -57,6 +57,32 @@ export default function Cargar({
         tipo_documento_id: "",
         user_id: "",
     });
+
+
+    useEffect(() => {
+    // Escuchamos el canal público que definimos en Laravel para recibir eventos de actualización de documentos
+    (window as any).Echo.channel('sefin-canal')
+        .listen('DocumentoActualizado', (e: any) => {
+            
+            // Recarga silenciosamente los datos de PostgreSQL
+            router.reload({ 
+                only: ['documentos']
+            });
+
+            // Mostramos una alerta minimalista en pantalla informando el refresco
+            toast.success('📊 Inventario sincronizado en tiempo real por el servidor.', {
+                icon: '🔄',
+                duration: 2500
+            });
+        });
+
+    // Limpieza de antena: Si el Administrador sale de esta pantalla, apagamos la escucha
+    return () => {
+        (window as any).Echo.leaveChannel('sefin-canal');
+    };
+    }, []);
+
+
 
     // Disparador unificado de filtros en tiempo real por GET
     const ejecutarFiltrado = (cambios: Record<string, string>) => {
@@ -469,7 +495,7 @@ export default function Cargar({
                                     <th className="p-4">CIAC</th>
 
                                     {/* COLUMNA BLOQUEADA DERECHA 1: NOTIFICADOR RESPONSABLE */}
-                                    <th className="p-4 sticky right-[190px] z-20 bg-gray-50 dark:bg-gray-900 border-l border-gray-200/50 dark:border-gray-700/50">
+                                    <th className="p-4 sticky right-[230px] z-20 bg-gray-50 dark:bg-gray-900 border-l border-gray-200/50 dark:border-gray-700/50">
                                         Notificador Responsable
                                     </th>
 
@@ -536,7 +562,7 @@ export default function Cargar({
                                             </td>
 
                                             {/* CELDA FIJA DERECHA 1: NOTIFICADOR (Coordinada con el ancho del estatus right-[90px]) */}
-                                            <td className="p-4 sticky right-[190px] z-10 bg-white dark:bg-gray-800 border-l border-gray-100 dark:border-gray-800">
+                                            <td className="p-4 sticky right-[230px] z-10 bg-white dark:bg-gray-800 border-l border-gray-100 dark:border-gray-800">
                                                 {d.user ? (
                                                     <span className="inline-flex items-center gap-1 font-semibold text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/20 px-2 py-1 rounded">
                                                         {d.user.name}
@@ -551,7 +577,7 @@ export default function Cargar({
 
                                             {/* CELDA FIJA DERECHA 2: ESTATUS Y CONTROLES (Al extremo derecho right-0) */}
                                             <td className="p-4 sticky right-0 z-10 bg-white dark:bg-gray-800 border-l border-gray-100 dark:border-gray-800 text-center">
-                                                <div className="flex items-center justify-between gap-3">
+                                                <div className="flex items-center justify-between gap-4">
                                                     {/* Estatus del Oficio */}
                                                     <span
                                                         className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
@@ -567,8 +593,33 @@ export default function Cargar({
                                                         {d.estatus}
                                                     </span>
 
-                                                    {/* 🛠️ BOTONES DE ACCIÓN RÁPIDA */}
+                                                    {/* BOTONES DE ACCIÓN RÁPIDA */}
                                                     <div className="flex gap-1.5 font-bold">
+                                                        <Link
+                                                            href={`/documentos/${d.id}`}
+                                                            title="Ver ficha técnica y línea de tiempo"
+                                                            className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-md transition-all duration-150"
+                                                        >
+                                                            <svg
+                                                                className="h-5 w-5"
+                                                                fill="none"
+                                                                viewBox="0 0 24 24"
+                                                                stroke="currentColor"
+                                                                strokeWidth="2"
+                                                            >
+                                                                <path
+                                                                    strokeLinecap="round"
+                                                                    strokeLinejoin="round"
+                                                                    d="M2.036 12.322a1.012 1.012 0 010-.644M7.543 6.1a4.96 4.96 0 00-2.26 2.26m13.722 7.28a4.96 4.96 0 002.26-2.26M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"
+                                                                />
+                                                                <path
+                                                                    strokeLinecap="round"
+                                                                    strokeLinejoin="round"
+                                                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                                                />
+                                                            </svg>
+                                                        </Link>
+
                                                         <button
                                                             onClick={() =>
                                                                 abrirModalEdicion(
@@ -592,6 +643,7 @@ export default function Cargar({
                                                                 />
                                                             </svg>
                                                         </button>
+
                                                         <button
                                                             onClick={() =>
                                                                 handleEliminar(
