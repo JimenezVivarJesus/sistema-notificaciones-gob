@@ -15,8 +15,8 @@ export default function Show({ documento, roleUsuario }: Props) {
         <AuthenticatedLayout
             header={
                 <div className="flex justify-between items-center text-xs sm:text-sm">
-                    <h2 className="text-xl font-bold leading-tight text-gray-800 dark:text-gray-200">
-                        📄 Ficha de Control: Folio {documento.numero_control}
+                     <h2 className="text-xl font-bold leading-tight text-gray-800 dark:text-gray-200">
+                        Documento {documento.numero_control ? `N° Control ${documento.numero_control}` : `N°Oficio ${documento.numero_oficio}`}
                     </h2>
                     <Link href={route('documentos.cargar')} className="text-xs font-bold text-gray-500 hover:text-[#9D2449] transition-colors">
                         ← Volver al Inventario
@@ -43,7 +43,8 @@ export default function Show({ documento, roleUsuario }: Props) {
             <span className={`text-[9px] px-2.5 py-0.5 rounded-full font-bold uppercase border ${
                 documento.estatus === 'NOTIFICADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                 documento.estatus === 'PENDIENTE POR NOTIFICAR' ? 'bg-gray-50 text-gray-500 border-gray-200' : 
-                'bg-amber-50 text-amber-700 border-amber-200'
+                documento.estatus === 'VISITADO' ? 'bg-amber-50 text-amber-700 border-amber-200' : 
+                'bg-red-50 text-red-700 border-red-200'
             }`}>
                 {documento.estatus}
             </span>
@@ -60,7 +61,12 @@ export default function Show({ documento, roleUsuario }: Props) {
             <label className="block text-[10px] text-gray-400 uppercase font-bold">Domicilio Fiscal</label>
             <span className="text-gray-700 dark:text-gray-300 font-normal block mt-0.5 leading-normal">{documento.domicilio_contribuyente}</span>
         </div>
-        {/* 🚀 Atributo agregado: Fecha de emisión del documento */}
+        <div>
+            <label className="block text-[10px] text-gray-400 uppercase font-bold">Referencias de Ubicación</label>
+            <span className="text-gray-600 dark:text-gray-400 font-normal italic block mt-0.5 leading-relaxed bg-gray-50 dark:bg-gray-900/60 p-2 rounded-lg">
+                {documento.referencias_domicilio || 'Sin referencias registradas.'}
+            </span>
+        </div>
         <div>
             <label className="block text-[10px] text-gray-400 uppercase font-bold">Fecha de Emisión del Oficio</label>
             <span className="text-gray-700 dark:text-gray-300 font-bold block mt-0.5">{documento.fecha_doc_legible}</span>
@@ -74,8 +80,8 @@ export default function Show({ documento, roleUsuario }: Props) {
         </h3>
         <div className="grid grid-cols-2 gap-4">
             <div>
-                <label className="block text-[10px] text-gray-400 uppercase font-bold">Número de Oficio</label>
-                <span className="font-bold text-gray-900 dark:text-white">{documento.numero_oficio}</span>
+                <label className="block text-[10px] text-gray-400 uppercase font-bold">Número</label>
+                <span className="font-bold text-gray-900 dark:text-white">{documento.numero_control ? `Control ${documento.numero_control}` : `Oficio ${documento.numero_oficio}`}</span>
             </div>
             <div>
                 <label className="block text-[10px] text-gray-400 uppercase font-bold">Código CIAC</label>
@@ -135,7 +141,8 @@ export default function Show({ documento, roleUsuario }: Props) {
                                                 <div className="flex flex-wrap gap-2 items-center">
                                                     <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider border ${
                                                         b.estatus_registrado === 'NOTIFICADO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                                        b.estatus_registrado === 'PENDIENTE POR NOTIFICAR' ? 'bg-gray-50 text-gray-500 border-gray-200' : 'bg-amber-50 text-amber-700 border-amber-200'
+                                                        b.estatus_registrado === 'PENDIENTE POR NOTIFICAR' ? 'bg-gray-50 text-gray-500 border-gray-200' :
+                                                        b.estatus_registrado === 'VISITADO' ? 'bg-amber-50 text-amber-500 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'
                                                     }`}>
                                                         Estatus: {b.estatus_registrado}
                                                     </span>

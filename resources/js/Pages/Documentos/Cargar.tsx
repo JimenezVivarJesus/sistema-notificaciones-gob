@@ -49,10 +49,12 @@ export default function Cargar({
     const formIndividual = useForm({
         numero_control: "",
         numero_oficio: "",
+        ciac_asignado: '',
         rfc_contribuyente: "",
         razon_social_contribuyente: "",
         domicilio_contribuyente: "",
         fecha_documento: "",
+        referencias_domicilio: '',
         area_id: "",
         tipo_documento_id: "",
         user_id: "",
@@ -177,9 +179,11 @@ export default function Cargar({
         formIndividual.setData({
             numero_control: doc.numero_control,
             numero_oficio: doc.numero_oficio,
+            ciac_asignado: doc.ciac_asignado || '',
             rfc_contribuyente: doc.rfc_contribuyente,
             razon_social_contribuyente: doc.razon_social_contribuyente,
             domicilio_contribuyente: doc.domicilio_contribuyente,
+            referencias_domicilio: doc.referencias_domicilio || '',
             fecha_documento: doc.fecha_documento,
             area_id: doc.area_id.toString(),
             tipo_documento_id: doc.tipo_documento_id.toString(),
@@ -341,6 +345,7 @@ export default function Cargar({
                                 <option value="PENDIENTE POR NOTIFICAR">
                                     PENDIENTE POR NOTIFICAR
                                 </option>
+                                <option value="VISITADO">VISITADO</option>
                                 <option value="NOTIFICADO">NOTIFICADO</option>
                                 <option value="NO LOCALIZADO">
                                     NO LOCALIZADO
@@ -422,10 +427,10 @@ export default function Cargar({
 
                 {/* HERRAMIENTA FLOTANTE DE ASIGNACIÓN MASIVA */}
                 {seleccionados.length > 0 && (
-                    <div className="bg-purple-50 border border-purple-200 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 transition-all duration-200">
-                        <p className="text-xs font-semibold text-purple-900">
+                    <div className="bg-institucional-claro/50 border border-institucional-hover p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4 transition-all duration-200">
+                        <p className="text-xs font-semibold text-institucional-hover">
                             Has seleccionado{" "}
-                            <strong className="text-purple-700 text-sm">
+                            <strong className="text-institucional text-sm">
                                 {seleccionados.length}
                             </strong>{" "}
                             documentos pendientes. Elige al notificador
@@ -443,7 +448,7 @@ export default function Cargar({
                                         e.target.value,
                                     )
                                 }
-                                className="p-2 text-xs border border-purple-300 rounded-lg bg-white text-gray-900 focus:ring-purple-500 w-full sm:w-56"
+                                className="p-2 text-xs border border-institucional-claro rounded-lg bg-white text-gray-900 focus:ring-institucional-claro w-full sm:w-56"
                                 required
                             >
                                 <option value="">
@@ -457,7 +462,7 @@ export default function Cargar({
                             </select>
                             <button
                                 type="submit"
-                                className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition shadow-sm"
+                                className="bg-institucional hover:bg-institucional-hover text-white text-xs font-bold px-4 py-2 rounded-lg uppercase tracking-wider transition shadow-sm"
                             >
                                 Delegar Lote
                             </button>
@@ -510,7 +515,7 @@ export default function Cargar({
                                     documentos.data.map((d, index) => (
                                         <tr
                                             key={d.id}
-                                            className={`hover:bg-gray-50/50 dark:hover:bg-gray-900/30 transition-colors ${seleccionados.includes(d.id) && "bg-purple-50/40 dark:bg-purple-950/10"}`}
+                                            className={`hover:bg-gray-50/50 dark:hover:bg-gray-900/30 transition-colors ${seleccionados.includes(d.id) && "bg-institucional-claro/50 dark:bg-institucional-claro"}`}
                                         >
                                             {/* CELDA FIJA IZQUIERDA: CHECKBOX INDIVIDUAL */}
                                             <td className="p-4 text-center sticky left-0 z-10 bg-white dark:bg-gray-800 border-r border-gray-100 dark:border-gray-800">
@@ -522,7 +527,7 @@ export default function Cargar({
                                                     onChange={() =>
                                                         toggleSeleccion(d.id)
                                                     }
-                                                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 h-4 w-4 cursor-pointer"
+                                                    className="rounded border-gray-300 text-institucional hover:text-institucional-hover focus:ring-institucional h-4 w-4 cursor-pointer"
                                                 />
                                             </td>
 
@@ -564,7 +569,7 @@ export default function Cargar({
                                             {/* CELDA FIJA DERECHA 1: NOTIFICADOR (Coordinada con el ancho del estatus right-[90px]) */}
                                             <td className="p-4 sticky right-[230px] z-10 bg-white dark:bg-gray-800 border-l border-gray-100 dark:border-gray-800">
                                                 {d.user ? (
-                                                    <span className="inline-flex items-center gap-1 font-semibold text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/20 px-2 py-1 rounded">
+                                                    <span className="inline-flex items-center gap-1 font-semibold text-institucional-hover dark:text-institucional-hover bg-institucional-claro dark:bg-institucional-claro px-2 py-1 rounded">
                                                         {d.user.name}
                                                     </span>
                                                 ) : (
@@ -587,7 +592,10 @@ export default function Cargar({
                                                                 : d.estatus ===
                                                                     "PENDIENTE POR NOTIFICAR"
                                                                   ? "bg-gray-100 text-gray-700"
-                                                                  : "bg-amber-50 text-amber-700"
+                                                                  : d.estatus ===
+                                                                    "VISITADO"
+                                                                  ? "bg-amber-50 text-amber-700"
+                                                                  : "bg-red-50 text-red-700"
                                                         }`}
                                                     >
                                                         {d.estatus}
@@ -767,6 +775,16 @@ export default function Cargar({
                                     className="block w-full text-xs text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-[#9D2449] file:px-3 file:py-2 file:text-xs file:font-bold file:text-white"
                                 />
                                 <div className="flex gap-3">
+                                    {formMasivo.errors.archivo_excel && (
+    <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200 p-3 rounded-xl text-xs text-rose-700 dark:text-rose-400 font-bold">
+        <p className="uppercase tracking-wider flex items-center gap-1">
+            <span>⚠️ Error en la estructura del Excel:</span>
+        </p>
+        <p className="font-normal mt-1 text-gray-700 dark:text-gray-300">
+            {formMasivo.errors.archivo_excel}
+        </p>
+    </div>
+)}
                                     <button
                                         type="button"
                                         onClick={() => setModalExcel(false)}
@@ -801,7 +819,7 @@ export default function Cargar({
                             >
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <label className="block text-xs font-bold text-gray-600">
-                                        Número de Control *
+                                        Número de Control
                                         <input
                                             type="text"
                                             value={
@@ -820,7 +838,7 @@ export default function Cargar({
                                     </label>
 
                                     <label className="block text-xs font-bold text-gray-600">
-                                        Número de Oficio *
+                                        Número de Oficio
                                         <input
                                             type="text"
                                             value={
@@ -834,7 +852,7 @@ export default function Cargar({
                                                 )
                                             }
                                             className="mt-1 w-full p-2 border rounded-lg text-gray-900 dark:bg-gray-700 dark:text-white focus:ring-[#9D2449]"
-                                            required
+                                            
                                         />
                                     </label>
 
@@ -854,7 +872,7 @@ export default function Cargar({
                                                 )
                                             }
                                             className="mt-1 w-full p-2 border rounded-lg text-gray-900 uppercase dark:bg-gray-700 dark:text-white focus:ring-[#9D2449]"
-                                            required
+                                            
                                         />
                                     </label>
 
@@ -895,6 +913,29 @@ export default function Cargar({
                                             required
                                         />
                                     </label>
+
+                                    <div className="sm:col-span-2">
+                                        <label className="block text-xs font-bold text-gray-600">Referencias de Ubicación / Domicilio</label>
+                                            <textarea 
+                                                value={formIndividual.data.referencias_domicilio} 
+                                                onChange={e => formIndividual.setData('referencias_domicilio', e.target.value)}
+                                                placeholder="Ej: Frente al parque central, portón color café con protecciones negras..."
+                                                className="w-full p-2 border rounded-lg dark:bg-gray-700 text-gray-900 dark:text-white font-normal"
+                                                rows={2}
+                                            />
+                                    </div>
+
+                                    <div>
+        <label className="block text-xs font-bold text-gray-600">Código CIAC</label>
+        <input 
+            type="text" 
+            value={formIndividual.data.ciac_asignado} 
+            onChange={e => formIndividual.setData('ciac_asignado', e.target.value)}
+            placeholder="Ej: CIAC-9842"
+            className="mt-1 w-full p-2 border rounded-lg text-gray-900 dark:bg-gray-700 dark:text-white focus:ring-[#9D2449]"
+        />
+    </div>
+
 
                                     <label className="block text-xs font-bold text-gray-600">
                                         Fecha del Documento *
@@ -1015,6 +1056,19 @@ export default function Cargar({
                                             ? "Guardando..."
                                             : "Guardar"}
                                     </button>
+
+                                    {Object.keys(formIndividual.errors).length > 0 && (
+    <div className="sm:col-span-2 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 p-3 rounded-xl text-[11px] text-rose-700 dark:text-rose-400 font-bold space-y-1">
+        <p className="uppercase tracking-wider">⚠️ Errores de validación del servidor:</p>
+        <ul className="list-disc list-inside font-normal">
+            {Object.entries(formIndividual.errors).map(([campo, mensaje]) => (
+                <li key={campo} className="capitalize">
+                    <strong>{campo.replace('_', ' ')}:</strong> {mensaje}
+                </li>
+            ))}
+        </ul>
+    </div>
+)}
                                 </div>
                             </form>
                         </div>

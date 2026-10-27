@@ -18,7 +18,7 @@ export default {
             colors: {
                 institucional: {
                     DEFAULT: '#9D2449',
-                    hover: '#B38E5D', // Un tono ligeramente más oscuro para los efectos hover
+                    hover: '#B38E5D',
                     claro: '#fdf2f0', // Un tono ultra claro para fondos suaves o alertas
                 }
             },

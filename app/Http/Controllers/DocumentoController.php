@@ -140,18 +140,33 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
             abort(403, 'Acceso denegado.');
         }
 
+        $request->merge([
+        'numero_control' => $request->filled('numero_control') ? trim($request->numero_control) : null,
+        'numero_oficio'  => $request->filled('numero_oficio') ? trim($request->numero_oficio) : null,
+        'ciac_asignado'  => $request->filled('ciac_asignado') ? trim($request->ciac_asignado) : null,
+        'referencias_domicilio' => $request->filled('referencias_domicilio') ? trim($request->referencias_domicilio) : null,
+        ]);
+
         // Validamos estrictamente según las reglas del documento de la SEFIN
         $request->validate([
-            'numero_control' => 'required|string|unique:documentos,numero_control',
-            'numero_oficio' => 'required|string',
+            // Exige Número de Control únicamente si el Número de Oficio es nulo/vacío
+        'numero_control' => 'nullable|string|max:255|required_without:numero_oficio|unique:documentos,numero_control',
+        // Exige Número de Oficio únicamente si el Número de Control es nulo/vacío
+        'numero_oficio'  => 'nullable|string|max:255|required_without:numero_control|unique:documentos,numero_oficio',
+            'ciac_asignado'  => 'nullable|string|max:255',
             'rfc_contribuyente' => 'required|string|max:13',
             'razon_social_contribuyente' => 'required|string|max:255',
             'domicilio_contribuyente' => 'required|string',
+            'referencias_domicilio'      => 'nullable|string',
             'fecha_documento' => 'required|date',
             'area_id' => 'required|exists:areas,id',
             'tipo_documento_id' => 'required|exists:tipo_documentos,id',
             'user_id' => 'nullable|exists:users,id', // Opcional al inicio
         ]);
+
+        if ($request->filled('numero_control') && $request->filled('numero_oficio')) {
+            return redirect()->back()->withErrors(['numero_oficio' => 'Por norma del sistema, un oficio no puede contar con Número de Control y Número de Oficio al mismo tiempo. Deja uno vacío.']);
+        }
 
         // Si el administrador asignó un notificador desde el inicio, registramos la fecha
         $fechaAsignacion = $request->filled('user_id') ? now() : null;
@@ -159,9 +174,11 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
         Documento::create([
             'numero_control' => trim($request->numero_control),
             'numero_oficio' => trim($request->numero_oficio),
+            'ciac_asignado'  => $request->filled('ciac_asignado') ? trim($request->ciac_asignado) : null,
             'rfc_contribuyente' => strtoupper(trim($request->rfc_contribuyente)),
             'razon_social_contribuyente' => trim($request->razon_social_contribuyente),
             'domicilio_contribuyente' => trim($request->domicilio_contribuyente),
+            'referencias_domicilio'      => $request->filled('referencias_domicilio') ? trim($request->referencias_domicilio) : null,
             'fecha_documento' => $request->fecha_documento,
             'area_id' => $request->area_id,
             'tipo_documento_id' => $request->tipo_documento_id,
@@ -221,8 +238,17 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
                      * $row[4] = RFC DEL CONTRIBUYENTE
                      * $row[5] = NOMBRE O RAZÓN SOCIAL DEL CONTRIBUYENTE
                      * $row[6] = DOMICILIO DEL CONTRIBUYENTE
-                     * $row[7] = FECHA DEL DOCUMENTO
+                     * $row[7] = REFERENCIAS DEL DOMICILIO
+                     * $row[8] = FECHA DEL DOCUMENTO
+                     * $row[9] = CIAC ASIGNADO (Opcional)
                      */
+
+                    $numControl = trim($row[2]);
+                    $numControl  = !empty(trim($numControl)) ? trim($numControl) : null;
+                    $numOficio  = trim($row[3]);
+                    $numOficio   = !empty(trim($numOficio)) ? trim($numOficio) : null;
+                    $ciacAsignado = trim($row[9]);
+                    $ciacAsignado = !empty(trim($ciacAsignado)) ? trim($ciacAsignado) : null;
 
                     // A. Buscamos el Área. Si no existe en la BD, la damos de alta al vuelo
                     $area = Area::firstOrCreate(['nombre' => trim($row[0])]);
@@ -231,7 +257,17 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
                     $tipoDoc = TipoDocumento::firstOrCreate(['nombre' => trim($row[1])]);
 
                     // C. Formateamos la fecha del documento de forma segura
-                    $fechaDocRaw = trim($row[7]); // Columna de la fecha (Fila 8 del Excel)
+                    $fechaDocRaw = trim($row[8]); // Columna de la fecha (Fila 8 del Excel)
+
+                    // REGLA DE EXCLUSIÓN MUTUA: Validamos que venga uno o el otro, pero no ambos vacíos ni ambos llenos
+                    if (empty($numControl) && empty($numOficio)) {
+                        continue; // Se salta la fila por falta de identificador
+                    }
+                    if (!empty($numControl) && !empty($numOficio)) {
+                    // Si vienen ambos, limpiamos uno priorizando el Número de Control por norma institucional
+                        $numOficio = null; 
+                    }
+
                     $fechaDocumento = now()->format('Y-m-d');
                     if (!empty($fechaDocRaw)) {
                         try {
@@ -250,23 +286,32 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
                         }
                     }
 
+                    $referencias= trim($row[7]); // Columna de referencias del domicilio
+                    
+
+                    // Determinamos la llave única para el updateOrCreate (el que esté presente)
+                    $matchField = !empty($numControl) ? ['numero_control' => $numControl] : ['numero_oficio' => $numOficio];
+
+
                     // D. Insertamos el documento inicial en PostgreSQL
                     // Usamos updateOrCreate para evitar errores si vuelven a subir el mismo número de control
                     Documento::updateOrCreate(
-                        ['numero_control' => trim($row[2])], // Llave única de búsqueda
+                        $matchField, // Llave única de búsqueda
                         [
+                            'numero_control' => !empty($numControl) ? $numControl : null,
+                            'numero_oficio'  => !empty($numOficio) ? $numOficio : null,
                             'user_id' => null, // Nace libre, sin notificador asignado
                             'area_id' => $area->id,
                             'tipo_documento_id' => $tipoDoc->id,
-                            'numero_oficio' => trim($row[3]),
                             'rfc_contribuyente' => strtoupper(trim($row[4])),
                             'razon_social_contribuyente' => trim($row[5]),
                             'domicilio_contribuyente' => trim($row[6]),
                             'fecha_documento' => $fechaDocumento,
                             'estatus' => 'PENDIENTE POR NOTIFICAR',
-                            'ciac_asignado' => null,
+                            'ciac_asignado' => $ciacAsignado,
                             'fecha_primera_asignacion' => null,
-                            'fecha_ultima_asignacion' => null
+                            'fecha_ultima_asignacion' => null,
+                            'referencias_domicilio' => !empty($referencias) ? $referencias : null,
                         ]
                     );
 
@@ -338,10 +383,10 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
             }
         });
 
-        // 📡 1. Le avisamos al nuevo notificador que le llegó trabajo
+        //Le avisamos al nuevo notificador que le llegó trabajo
     event(new \App\Events\DocumentoActualizado($userId));
 
-    // 📡 2. Le avisamos a los notificadores anteriores para que quiten los folios de su pantalla
+    //Le avisamos a los notificadores anteriores para que quiten los folios de su pantalla
     foreach ($notificadoresAnteriores as $antiguoId) {
         if ($antiguoId != $userId) {
             event(new \App\Events\DocumentoActualizado($antiguoId));
@@ -395,20 +440,22 @@ public function registrarVisita(Request $request, $id)
         abort(403, 'Acceso denegado.');
     }
 
+    $esNoTrabajado = $request->input('estatus_registrado') === 'NO TRABAJADO';
+
     $request->validate([
         'estatus_registrado'       => 'required|string',
-        'tipo_documento_proceso'   => 'required|string',
+        'tipo_documento_proceso'   => $esNoTrabajado ? 'nullable|string' : 'required|string',
         'hora_inicio_visita'       => 'required|date',
         'hora_fin_visita'          => 'required|date',
         'ubicacion_gps'            => 'required|string',
         'observaciones_operativas' => 'required|string',
-        'foto'                     => 'required|image|mimes:jpeg,png,jpg|max:8192', // Máximo 8MB
+        'foto'                     => $esNoTrabajado ? 'nullable' : 'required|image|mimes:jpeg,png,jpg|max:8192', // Máximo 8MB
     ]);
 
     $documento = Documento::findOrFail($id);
     $foto = $request->file('foto');
 
-    // CONTROL DE CONFIANZA: Validamos que la foto provenga de una captura real de cámara (No de internet/galería)
+    // Validamos que la foto provenga de una captura real de cámara (No de internet/galería)
     // Las fotos reales de dispositivos móviles contienen metadatos EXIF (marca de cámara, apertura, etc.)
     $metaExif = @exif_read_data($foto->getRealPath());
     
@@ -417,11 +464,13 @@ public function registrarVisita(Request $request, $id)
     //     return redirect()->back()->withErrors(['foto' => 'Evidencia rechazada. La imagen no proviene de una captura de cámara en tiempo real.']);
     // }
 
-    // GUARDADO DE FOTO LOCAL (100% de forma nativa en tu servidor del Gobierno, libre de Google Drive)
-    // Laravel tomará la imagen y la guardará en la carpeta local pública de forma automática
-    $nombreFoto = 'evidencia_' . $documento->numero_control . '_' . time() . '.' . $foto->getClientOriginalExtension();
-    $pathFoto = $foto->storeAs('evidencias_campo', $nombreFoto, 'public');
-    $urlFotoPublica = '/storage/' . $pathFoto;
+    $urlFotoPublica = null;
+    //Si tiene un estatus de NO TRABAJADO, no se requiere foto, pero si la tiene, la guardamos de manera local.
+    if ($request->hasFile('foto') && !$esNoTrabajado) {
+        $nombreFoto = 'evidencia_' . $documento->numero_control . '_' . time() . '.' . $foto->getClientOriginalExtension();
+        $pathFoto = $foto->storeAs('evidencias_campo', $nombreFoto, 'public');
+        $urlFotoPublica = '/storage/' . $pathFoto;
+    }
 
     // CÁLCULO MATEMÁTICO AUTOMÁTICO DE PERMANENCIA (Control de confianza de tiempo)
     $inicio = \Carbon\Carbon::parse($request->hora_inicio_visita);
@@ -456,7 +505,7 @@ public function registrarVisita(Request $request, $id)
         ]);
     });
 
-    // 🚀 ALERTA EN TIEMPO REAL: Le avisamos al Administrador (canal público) y al celular (canal privado)
+    // ALERTA EN TIEMPO REAL: Le avisamos al Administrador (canal público) y al celular (canal privado)
     // que el estatus cambió y se firmó el acta.
     event(new \App\Events\DocumentoActualizado($documento->user_id));
 

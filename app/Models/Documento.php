@@ -27,7 +27,8 @@ class Documento extends Model
         'estatus',
         'ciac_asignado',
         'fecha_primera_asignacion',
-        'fecha_ultima_asignacion'
+        'fecha_ultima_asignacion',
+        'referencias_domicilio'
     ];
 
     // Formateamos las fechas automáticamente a objetos Carbon de Laravel
