@@ -84,8 +84,8 @@ export default function Show({ documento, roleUsuario }: Props) {
                 <span className="font-bold text-gray-900 dark:text-white">{documento.numero_control ? `Control ${documento.numero_control}` : `Oficio ${documento.numero_oficio}`}</span>
             </div>
             <div>
-                <label className="block text-[10px] text-gray-400 uppercase font-bold">Código CIAC</label>
-                <span className="font-mono font-bold text-gray-900 dark:text-white">{documento.ciac_asignado || 'N/A'}</span>
+                <label className="block text-[10px] text-gray-400 uppercase font-bold">CIAC</label>
+                <span className="font-mono font-bold text-gray-900 dark:text-white">{documento.ciac?.nombre || 'N/A'}</span>
             </div>
         </div>
         <div>

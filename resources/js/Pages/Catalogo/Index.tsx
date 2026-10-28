@@ -6,14 +6,17 @@ import toast, { Toaster } from 'react-hot-toast';
 interface Props {
     areas: Array<{ id: number; nombre: string }>;
     tiposDocumento: Array<{ id: number; nombre: string }>;
+    ciacs: Array<{ id: number; nombre: string }>;
 }
 
-export default function Index({ areas, tiposDocumento }: Props) {
+export default function Index({ areas, tiposDocumento, ciacs }: Props) {
     const [editAreaId, setEditAreaId] = useState<number | null>(null);
     const [editTipoId, setEditTipoId] = useState<number | null>(null);
+    const [editCiacId, setEditCiacId] = useState<number | null>(null);
 
     const formArea = useForm({ nombre: '' });
     const formTipo = useForm({ nombre: '' });
+    const formCiac = useForm({ nombre: '' });
 
     // --- ACCIONES DE ÁREAS ---
     const onSubmitArea = (e: React.FormEvent) => {
@@ -71,6 +74,34 @@ export default function Index({ areas, tiposDocumento }: Props) {
         }
     };
 
+    // --- ACCIONES DE CIACS ---
+    const onSubmitCiac = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (editCiacId) {
+            router.put(`/ciacs/${editCiacId}`, formCiac.data, {
+                onSuccess: () => { toast.success('CIAC actualizado'); setEditCiacId(null); formCiac.reset(); }
+            });
+        } else {
+            formCiac.post(route('ciacs.store'), {
+                onSuccess: () => { toast.success('Nuevo CIAC registrado'); formCiac.reset(); }
+            });
+        }
+    };
+
+    const encederEdicionCiac = (ciac: any) => {
+        setEditCiacId(ciac.id);
+        formCiac.setData('nombre', ciac.nombre);
+    };
+
+    const handleEliminarCiac = (id: number) => {
+        if (confirm('¿Deseas eliminar este CIAC del catálogo oficial?')) {
+            router.delete(`/ciacs/${id}`, {
+                onError: (err: any) => toast.error(err.error || 'Error al eliminar'),
+                onSuccess: () => toast.success('CIAC removido')
+            });
+        }
+    };
+
     return (
         <AuthenticatedLayout
             header={<h2 className="text-xl font-bold leading-tight text-gray-800 dark:text-gray-200">Configuración de Catálogos Oficiales</h2>}
@@ -99,7 +130,7 @@ export default function Index({ areas, tiposDocumento }: Props) {
                         <div className="border rounded-lg overflow-hidden max-h-96 overflow-y-auto">
                             <table className="w-full text-left border-collapse">
                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-gray-700 dark:text-gray-300">
-                                    {areas.map(a => (
+                                    {areas?.map(a => (
                                         <tr key={a.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/30 transition-colors">
                                             <td className="p-3 font-semibold text-gray-900 dark:text-white">{a.nombre}</td>
                                             <td className="p-3 text-right space-x-2 font-bold shrink-0">
@@ -132,12 +163,45 @@ export default function Index({ areas, tiposDocumento }: Props) {
                         <div className="border rounded-lg overflow-hidden max-h-96 overflow-y-auto">
                             <table className="w-full text-left border-collapse">
                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-gray-700 dark:text-gray-300">
-                                    {tiposDocumento.map(t => (
+                                    {tiposDocumento?.map(t => (
                                         <tr key={t.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/30 transition-colors">
                                             <td className="p-3 font-semibold text-gray-900 dark:text-white">{t.nombre}</td>
                                             <td className="p-3 text-right space-x-2 font-bold-shrink-0">
                                                 <button onClick={() => encederEdicionTipo(t)} className="text-blue-600 hover:underline">Editar</button>
                                                 <button onClick={() => handleEliminarTipo(t.id)} className="text-rose-600 hover:underline">Borrar</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* SECCIÓN C: CRUD DE CIACS */}
+                    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 space-y-4">
+                        <h3 className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">Códigos CIAC</h3>
+
+                        <form onSubmit={onSubmitCiac} className="flex gap-2">
+                            <input 
+                                type="text" value={formCiac.data.nombre} onChange={e => formCiac.setData('nombre', e.target.value)}
+                                placeholder="Ej: ZIMATLAN" required
+                                className="flex-1 p-2 border rounded-lg dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-[#9D2449]"
+                            />
+                            <button type="submit" disabled={formCiac.processing} className="bg-[#9D2449] text-white px-4 py-2 rounded-lg font-bold uppercase">
+                                {editCiacId ? 'Modificar' : 'Agregar'}
+                            </button>
+                            {editCiacId && <button type="button" onClick={() => { setEditCiacId(null); formCiac.reset(); }} className="bg-gray-100 px-3 py-2 rounded-lg font-bold">✕</button>}
+                        </form>
+
+                        <div className="border rounded-lg overflow-hidden max-h-96 overflow-y-auto">
+                            <table className="w-full text-left border-collapse">
+                                <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-gray-700 dark:text-gray-300">
+                                    {ciacs?.map(c => (
+                                        <tr key={c.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-900/30 transition-colors">
+                                            <td className="p-3 font-semibold text-gray-900 dark:text-white">{c.nombre}</td>
+                                            <td className="p-3 text-right space-x-2 font-bold-shrink-0">
+                                                <button onClick={() => encederEdicionCiac(c)} className="text-blue-600 hover:underline">Editar</button>
+                                                <button onClick={() => handleEliminarCiac(c.id)} className="text-rose-600 hover:underline">Borrar</button>
                                             </td>
                                         </tr>
                                     ))}

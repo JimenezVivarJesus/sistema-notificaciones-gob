@@ -16,7 +16,7 @@ class AreaController extends Controller
             'nombre' => 'required|string|max:255|unique:areas,nombre',
         ]);
 
-        Area::create(['nombre' => trim($request->nombre)]);
+        Area::create(['nombre' => strtoupper(trim($request->nombre))]);
 
         return redirect()->back()->with('success', 'Área de la SEFIN dada de alta con éxito.');
     }

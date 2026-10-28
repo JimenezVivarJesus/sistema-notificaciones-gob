@@ -6,6 +6,7 @@ use App\Models\Documento;
 use App\Models\Area;
 use App\Models\TipoDocumento;
 use App\Models\User;
+use App\Models\Ciac;
 use Illuminate\Http\Request;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use Illuminate\Support\Facades\DB;
@@ -39,7 +40,7 @@ public function show($id)
     $usuarioActivo = auth()->user();
     
     // 1. Cargamos el documento base con sus relaciones estructurales
-    $documento = Documento::with(['area', 'tipoDocumento', 'user'])->findOrFail($id);
+    $documento = Documento::with(['area', 'tipoDocumento', 'ciac','user'])->findOrFail($id);
 
     // 2. FILTRADO DE SEGURIDAD EN BITÁCORA: Cargamos los movimientos según el rol
     if ($usuarioActivo->role === 'administrador') {
@@ -85,7 +86,7 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
         }
 
         // 1. Iniciamos la consulta base con Eager Loading para optimizar la RAM del servidor
-        $query = Documento::with(['area', 'tipoDocumento', 'user'])->orderBy('created_at', 'desc');
+        $query = Documento::with(['area', 'tipoDocumento', 'ciac','user'])->orderBy('created_at', 'desc');
 
         // 2. FILTRO DE BÚSQUEDA exacta o parcial por RFC
         if ($request->filled('rfc')) {
@@ -103,8 +104,8 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
         }
 
         // 5. FILTRO POR CIAC ASIGNADO
-        if ($request->filled('ciac')) {
-            $query->where('ciac_asignado', 'LIKE', '%' . trim($request->ciac) . '%');
+       if ($request->filled('ciac')) {
+            $query->where('ciac_id', $request->ciac);
         }
 
         // 6. FILTRO POR FECHA DEL DOCUMENTO
@@ -122,6 +123,7 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
             'documentos' => $query->paginate(10)->withQueryString(),
             // Catálogos para rellenar las herramientas de la barra de búsqueda
             'areas' => Area::orderBy('nombre', 'asc')->get(),
+            'ciacs' => Ciac::orderBy('nombre', 'asc')->get(),
             'tiposDocumento' => TipoDocumento::orderBy('nombre', 'asc')->get(),
             'notificadores' => User::where('role', 'notificador')->where('activo', true)->select('id', 'name')->orderBy('name', 'asc')->get(),
             // Mantenemos el estado de los filtros para que no se borren al recargar la pantalla
@@ -143,7 +145,6 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
         $request->merge([
         'numero_control' => $request->filled('numero_control') ? trim($request->numero_control) : null,
         'numero_oficio'  => $request->filled('numero_oficio') ? trim($request->numero_oficio) : null,
-        'ciac_asignado'  => $request->filled('ciac_asignado') ? trim($request->ciac_asignado) : null,
         'referencias_domicilio' => $request->filled('referencias_domicilio') ? trim($request->referencias_domicilio) : null,
         ]);
 
@@ -153,8 +154,7 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
         'numero_control' => 'nullable|string|max:255|required_without:numero_oficio|unique:documentos,numero_control',
         // Exige Número de Oficio únicamente si el Número de Control es nulo/vacío
         'numero_oficio'  => 'nullable|string|max:255|required_without:numero_control|unique:documentos,numero_oficio',
-            'ciac_asignado'  => 'nullable|string|max:255',
-            'rfc_contribuyente' => 'required|string|max:13',
+            'ciac_id' => 'required|exists:ciacs,id',
             'razon_social_contribuyente' => 'required|string|max:255',
             'domicilio_contribuyente' => 'required|string',
             'referencias_domicilio'      => 'nullable|string',
@@ -174,7 +174,7 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
         Documento::create([
             'numero_control' => trim($request->numero_control),
             'numero_oficio' => trim($request->numero_oficio),
-            'ciac_asignado'  => $request->filled('ciac_asignado') ? trim($request->ciac_asignado) : null,
+            'ciac_id' => $request->ciac_id,
             'rfc_contribuyente' => strtoupper(trim($request->rfc_contribuyente)),
             'razon_social_contribuyente' => trim($request->razon_social_contribuyente),
             'domicilio_contribuyente' => trim($request->domicilio_contribuyente),
@@ -250,6 +250,9 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
                     $ciacAsignado = trim($row[9]);
                     $ciacAsignado = !empty(trim($ciacAsignado)) ? trim($ciacAsignado) : null;
 
+                    // A. Buscamos el CIAC. Si no existe en la BD, la damos de alta al vuelo
+                    $ciac = Ciac::firstOrCreate(['nombre' => $ciacAsignado]);
+
                     // A. Buscamos el Área. Si no existe en la BD, la damos de alta al vuelo
                     $area = Area::firstOrCreate(['nombre' => trim($row[0])]);
 
@@ -308,7 +311,7 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
                             'domicilio_contribuyente' => trim($row[6]),
                             'fecha_documento' => $fechaDocumento,
                             'estatus' => 'PENDIENTE POR NOTIFICAR',
-                            'ciac_asignado' => $ciacAsignado,
+                            'ciac_id' => $ciac->id,
                             'fecha_primera_asignacion' => null,
                             'fecha_ultima_asignacion' => null,
                             'referencias_domicilio' => !empty($referencias) ? $referencias : null,
@@ -410,6 +413,7 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
             'domicilio_contribuyente' => 'required|string',
             'fecha_documento' => 'required|date',
             'area_id' => 'required|exists:areas,id',
+            'ciac_id' => 'required|exists:ciacs,id',
             'tipo_documento_id' => 'required|exists:tipo_documentos,id',
             'user_id' => 'nullable|exists:users,id',
         ]);

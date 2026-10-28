@@ -22,7 +22,7 @@ class NotificadorController extends Controller
             // Jalamos solo sus documentos pendientes, optimizando las columnas para el plan de datos móvil
             'documentos' => Documento::where('user_id', auth()->id())
                 ->where('estatus', '!=', 'NOTIFICADO') // Solo lo que tiene pendiente por trabajar
-                ->with(['area', 'tipoDocumento'])
+                ->with(['area', 'tipoDocumento', 'ciac']) // Cargamos relaciones necesarias para la vista
                 ->orderBy('fecha_documento', 'asc')
                 ->get()
         ]);

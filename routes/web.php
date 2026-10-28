@@ -6,11 +6,13 @@ use App\Http\Controllers\DocumentoController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\AreaController;
 use App\Http\Controllers\TipoDocumentoController;
+use App\Http\Controllers\CiacController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Models\Area;
 use App\Models\TipoDocumento;
+use App\Models\Ciac;
 use App\Http\Controllers\NotificadorController;
 
 
@@ -56,13 +58,18 @@ Route::middleware(['auth'])->group(function () {
         if (auth()->user()->role !== 'administrador') { abort(403); }
         return Inertia::render('Catalogo/Index', [
             'areas' => Area::orderBy('nombre', 'asc')->get(),
-            'tiposDocumento' => TipoDocumento::orderBy('nombre', 'asc')->get()
+            'tiposDocumento' => TipoDocumento::orderBy('nombre', 'asc')->get(),
+            'ciacs' => Ciac::orderBy('nombre', 'asc')->get()
         ]);
     })->name('catalogos.index');
 
     Route::post('/areas', [AreaController::class, 'store'])->name('areas.store');
     Route::put('/areas/{id}', [AreaController::class, 'update'])->name('areas.update');
     Route::delete('/areas/{id}', [AreaController::class, 'destroy'])->name('areas.destroy');
+
+    Route::post('/ciacs', [CiacController::class, 'store'])->name('ciacs.store');
+    Route::put('/ciacs/{id}', [CiacController::class, 'update'])->name('ciacs.update');
+    Route::delete('/ciacs/{id}', [CiacController::class, 'destroy'])->name('ciacs.destroy');
 
     Route::post('/tipo-documentos', [TipoDocumentoController::class, 'store'])->name('tipoDocumentos.store');
     Route::put('/tipo-documentos/{id}', [TipoDocumentoController::class, 'update'])->name('tipoDocumentos.update');

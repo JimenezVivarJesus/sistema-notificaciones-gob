@@ -15,7 +15,7 @@ class TipoDocumentoController extends Controller
             'nombre' => 'required|string|max:255|unique:tipo_documentos,nombre',
         ]);
 
-        TipoDocumento::create(['nombre' => trim($request->nombre)]);
+        TipoDocumento::create(['nombre' => strtoupper(trim($request->nombre))]);
         return redirect()->back()->with('success', 'Tipo de documento registrado.');
     }
 

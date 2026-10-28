@@ -25,7 +25,7 @@ class Documento extends Model
         'domicilio_contribuyente',
         'fecha_documento',
         'estatus',
-        'ciac_asignado',
+        'ciac_id',
         'fecha_primera_asignacion',
         'fecha_ultima_asignacion',
         'referencias_domicilio'
@@ -60,6 +60,14 @@ class Documento extends Model
     public function tipoDocumento(): BelongsTo
     {
         return $this->belongsTo(TipoDocumento::class, 'tipo_documento_id');
+    }
+
+    /**
+    * Relación: Un documento pertenece a un código CIAC específico.
+    */
+    public function ciac()
+    {
+        return $this->belongsTo(Ciac::class, 'ciac_id');
     }
 
     /**

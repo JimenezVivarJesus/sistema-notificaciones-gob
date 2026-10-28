@@ -195,8 +195,11 @@ const documentosFiltrados = documentos.filter(d =>
                             {docAbiertoId === d.id && (
                                 <div className="p-4 bg-gray-50/50 dark:bg-gray-900/10 space-y-4 border-t border-gray-100 dark:border-gray-700 animate-in slide-in-from-top-3 duration-200">
                                     <div className="grid grid-cols-2 gap-2 text-[10px] bg-white dark:bg-gray-900 p-3 rounded-xl border border-gray-100">
-                                        <div><span className="text-gray-400 block font-bold uppercase">RFC Contribuyente:</span> <span className="text-gray-900 dark:text-white font-mono font-bold uppercase">{d.rfc_contribuyente}</span></div>
+                                        <div>
+                                            <span className="text-gray-400 block font-bold uppercase">RFC Contribuyente:</span> <span className="text-gray-900 dark:text-white font-mono font-bold uppercase">{d.rfc_contribuyente}</span>
+                                        </div>
                                         <div className="col-span-2 border-t pt-1.5 mt-1"><span className="text-gray-400 block font-bold uppercase">Área Remitente:</span> <span className="text-gray-700 dark:text-gray-300 font-medium">{d.area?.nombre}</span></div>
+                                        <div className="col-span-2 border-t pt-1.5 mt-1"><span className="text-gray-400 block font-bold uppercase">CIAC:</span> <span className="text-gray-700 dark:text-gray-300 font-medium">{d.ciac?.nombre}</span></div>
                                     </div>
 
                                     {!horaInicio ? (

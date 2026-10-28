@@ -6,6 +6,7 @@ import toast, { Toaster } from "react-hot-toast";
 interface Props {
     areas: Array<{ id: number; nombre: string }>;
     tiposDocumento: Array<{ id: number; nombre: string }>;
+    ciacs: Array<{ id: number; nombre: string }>;
     notificadores: Array<{ id: number; name: string }>;
     documentos: {
         data: Array<any>;
@@ -26,6 +27,7 @@ interface Props {
 export default function Cargar({
     areas,
     tiposDocumento,
+    ciacs,
     notificadores,
     documentos,
     filtros,
@@ -49,7 +51,7 @@ export default function Cargar({
     const formIndividual = useForm({
         numero_control: "",
         numero_oficio: "",
-        ciac_asignado: '',
+        ciac_id: '',
         rfc_contribuyente: "",
         razon_social_contribuyente: "",
         domicilio_contribuyente: "",
@@ -72,7 +74,7 @@ export default function Cargar({
             });
 
             // Mostramos una alerta minimalista en pantalla informando el refresco
-            toast.success('📊 Inventario sincronizado en tiempo real por el servidor.', {
+            toast.success('Inventario sincronizado en tiempo real por el servidor.', {
                 icon: '🔄',
                 duration: 2500
             });
@@ -179,7 +181,7 @@ export default function Cargar({
         formIndividual.setData({
             numero_control: doc.numero_control,
             numero_oficio: doc.numero_oficio,
-            ciac_asignado: doc.ciac_asignado || '',
+            ciac_id: doc.ciac_id.toString(),
             rfc_contribuyente: doc.rfc_contribuyente,
             razon_social_contribuyente: doc.razon_social_contribuyente,
             domicilio_contribuyente: doc.domicilio_contribuyente,
@@ -320,7 +322,7 @@ export default function Cargar({
                                 className="p-2 border rounded-lg dark:bg-gray-700 text-gray-900 dark:text-white"
                             >
                                 <option value="">Todas las áreas</option>
-                                {areas.map((a) => (
+                                {areas?.map((a) => (
                                     <option key={a.id} value={a.id}>
                                         {a.nombre}
                                     </option>
@@ -359,16 +361,23 @@ export default function Cargar({
                             <label className="text-[10px] uppercase tracking-wider text-gray-400">
                                 CIAC Asignado
                             </label>
-                            <input
-                                type="text"
+                            <select
                                 value={ciac}
                                 onChange={(e) => {
                                     setCiac(e.target.value);
-                                    ejecutarFiltrado({ ciac: e.target.value });
+                                    ejecutarFiltrado({
+                                        ciac: e.target.value,
+                                    });
                                 }}
-                                placeholder="Filtrar por CIAC"
                                 className="p-2 border rounded-lg dark:bg-gray-700 text-gray-900 dark:text-white"
-                            />
+                            >
+                                <option value="">Todos los CIACs</option>
+                                {ciacs?.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                        {c.nombre}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                         <div className="flex flex-col gap-1">
                             <label className="text-[10px] uppercase tracking-wider text-gray-400">
@@ -563,7 +572,7 @@ export default function Cargar({
                                                 </span>
                                             </td>
                                             <td className="p-4 font-mono font-bold text-gray-600 dark:text-gray-400">
-                                                {d.ciac_asignado || "N/A"}
+                                                <span>{d.ciac?.nombre}</span>
                                             </td>
 
                                             {/* CELDA FIJA DERECHA 1: NOTIFICADOR (Coordinada con el ancho del estatus right-[90px]) */}
@@ -926,14 +935,30 @@ export default function Cargar({
                                     </div>
 
                                     <div>
-        <label className="block text-xs font-bold text-gray-600">Código CIAC</label>
-        <input 
-            type="text" 
-            value={formIndividual.data.ciac_asignado} 
-            onChange={e => formIndividual.setData('ciac_asignado', e.target.value)}
-            placeholder="Ej: CIAC-9842"
-            className="mt-1 w-full p-2 border rounded-lg text-gray-900 dark:bg-gray-700 dark:text-white focus:ring-[#9D2449]"
-        />
+
+                                    <label className="block text-xs font-bold text-gray-600">
+                                        CIAC*
+                                        <select
+                                            value={formIndividual.data.ciac_id}
+                                            onChange={(e) =>
+                                                formIndividual.setData(
+                                                    "ciac_id",
+                                                    e.target.value,
+                                                )
+                                            }
+                                            className="mt-1 w-full p-2 border rounded-lg text-gray-900 dark:bg-gray-700 dark:text-white focus:ring-[#9D2449]"
+                                            required
+                                        >
+                                            <option value="">
+                                                Selecciona el CIAC
+                                            </option>
+                                            {ciacs.map((c) => (
+                                                <option key={c.id} value={c.id}>
+                                                    {c.nombre}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
     </div>
 
 
