@@ -21,6 +21,10 @@ class DocumentoController extends Controller
     {
         $usuarioActivo = auth()->user();
 
+        if ($usuarioActivo->role === 'notificador') {
+            return redirect()->route('notificador.agenda');
+        }
+
         return Inertia::render('Dashboard', [
             // Contadores de estatus para mostrar en la parte superior del Dashboard
             'totales' => [
@@ -43,10 +47,11 @@ public function show($id)
     $documento = Documento::with(['area', 'tipoDocumento', 'ciac','user'])->findOrFail($id);
 
     // 2. FILTRADO DE SEGURIDAD EN BITÁCORA: Cargamos los movimientos según el rol
-    if ($usuarioActivo->role === 'administrador') {
-        // El Administrador audita absolutamente todo (Asignaciones + Trabajo de campo)
-        $documento->load(['bitacora.user' => function($query) {
-            $query->orderBy('created_at', 'desc');
+    if ($usuarioActivo->role === 'administrador' || $usuarioActivo->role === 'coordinador_area' || $usuarioActivo->role === 'coordinador_ciac') {
+         // El Administrador audita todo: cargamos tanto el notificador como el asignador
+        $documento->load(['bitacora' => function($query) {
+            $query->with(['user', 'asignador'])
+                  ->orderBy('created_at', 'desc');
         }]);
     } else {
         // El Notificador solo ve antecedentes reales de la calle para obtener contexto
@@ -81,12 +86,18 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
 
     public function mostrarFormularioCarga(Request $request)
     {
-        if (auth()->user()->role !== 'administrador') {
+        if (auth()->user()->role === 'notificador') {
             abort(403);
         }
 
         // 1. Iniciamos la consulta base con Eager Loading para optimizar la RAM del servidor
         $query = Documento::with(['area', 'tipoDocumento', 'ciac','user'])->orderBy('created_at', 'desc');
+
+        // AISLAMIENTO TOTAL: El Coordinador CIAC solo ve su propio CIAC
+        if (auth()->user()->role === 'coordinador_ciac') {
+            $query->where('ciac_id', auth()->user()->ciac_id);
+        }
+
 
         // 2. FILTRO DE BÚSQUEDA exacta o parcial por RFC
         if ($request->filled('rfc')) {
@@ -128,6 +139,9 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
             'notificadores' => User::where('role', 'notificador')->where('activo', true)->select('id', 'name')->orderBy('name', 'asc')->get(),
             // Mantenemos el estado de los filtros para que no se borren al recargar la pantalla
             'filtros' => $request->only(['rfc', 'area_id', 'estatus', 'ciac', 'fecha', 'user_id']),
+            'roleUsuario' => auth()->user()->role,
+            'areaUsuario' => auth()->user()->area_id,
+            'ciacUsuario' => auth()->user()->ciac_id,
         ]);
     }
 
@@ -138,7 +152,7 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
     public function store(Request $request)
     {
         // Candado de seguridad
-        if (auth()->user()->role !== 'administrador') {
+        if (auth()->user()->role === 'notificador') {
             abort(403, 'Acceso denegado.');
         }
 
@@ -154,7 +168,6 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
         'numero_control' => 'nullable|string|max:255|required_without:numero_oficio|unique:documentos,numero_control',
         // Exige Número de Oficio únicamente si el Número de Control es nulo/vacío
         'numero_oficio'  => 'nullable|string|max:255|required_without:numero_control|unique:documentos,numero_oficio',
-            'ciac_id' => 'required|exists:ciacs,id',
             'razon_social_contribuyente' => 'required|string|max:255',
             'domicilio_contribuyente' => 'required|string',
             'referencias_domicilio'      => 'nullable|string',
@@ -171,10 +184,22 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
         // Si el administrador asignó un notificador desde el inicio, registramos la fecha
         $fechaAsignacion = $request->filled('user_id') ? now() : null;
 
+        if(auth()->user()->role === 'coordinador_ciac') {
+            // Si el usuario es un coordinador de CIAC, forzamos que el documento se asigne a su propio CIAC
+            $ciac = auth()->user()->ciac_id;
+        } else {
+            // Para otros roles, validamos que el CIAC exista en la base de datos
+            $request->validate([
+                'ciac_id' => 'required|exists:ciacs,id',
+            ]);
+            $ciac = $request->ciac_id;
+        }
+
+
         Documento::create([
             'numero_control' => trim($request->numero_control),
             'numero_oficio' => trim($request->numero_oficio),
-            'ciac_id' => $request->ciac_id,
+            'ciac_id' => $ciac,
             'rfc_contribuyente' => strtoupper(trim($request->rfc_contribuyente)),
             'razon_social_contribuyente' => trim($request->razon_social_contribuyente),
             'domicilio_contribuyente' => trim($request->domicilio_contribuyente),
@@ -198,7 +223,7 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
     public function cargarMasivo(Request $request)
     {
         // 1. Candado de seguridad estricto: Solo el Administrador pasa
-        if (auth()->user()->role !== 'administrador') {
+        if (auth()->user()->role === 'notificador') {
             abort(403, 'Acceso denegado. Acción exclusiva para el Administrador del sistema.');
         }
 
@@ -247,13 +272,19 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
                     $numControl  = !empty(trim($numControl)) ? trim($numControl) : null;
                     $numOficio  = trim($row[3]);
                     $numOficio   = !empty(trim($numOficio)) ? trim($numOficio) : null;
-                    $ciacAsignado = trim($row[9]);
-                    $ciacAsignado = !empty(trim($ciacAsignado)) ? trim($ciacAsignado) : null;
 
-                    // A. Buscamos el CIAC. Si no existe en la BD, la damos de alta al vuelo
-                    $ciac = Ciac::firstOrCreate(['nombre' => $ciacAsignado]);
+                    if(auth()->user()->role === 'coordinador_ciac') {
+                        // Si el usuario es un coordinador de CIAC, forzamos que el documento se asigne a su propio CIAC
+                        $ciac = Ciac::find(auth()->user()->ciac_id);
+                    }else{
+                        $ciacAsignado = trim($row[9]);
+                        $ciacAsignado = !empty(trim($ciacAsignado)) ? trim($ciacAsignado) : null;
 
-                    // A. Buscamos el Área. Si no existe en la BD, la damos de alta al vuelo
+                        // Buscamos el CIAC. Si no existe en la BD, la damos de alta
+                        $ciac = Ciac::firstOrCreate(['nombre' => $ciacAsignado]);
+                    }
+
+                    // A. Buscamos el Área. Si no existe en la BD, la damos de alta
                     $area = Area::firstOrCreate(['nombre' => trim($row[0])]);
 
                     // B. Buscamos el Tipo de Documento. Si no existe, lo creamos
@@ -335,8 +366,9 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
     */
     public function asignarMasivo(Request $request)
     {
-        // 1. Candado de seguridad institucional estricto
-        if (auth()->user()->role !== 'administrador') {
+
+        // Candado de seguridad institucional estricto
+        if (auth()->user()->role === 'notificador') {
             abort(403, 'Acceso denegado.');
         }
 
@@ -363,6 +395,16 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
             foreach ($documentoIds as $id) {
                 $documento = Documento::findOrFail($id);
 
+                // Bloqueo para Coordinador de Área
+                if (auth()->user()->role === 'coordinador_area' && $documento->area_id !== auth()->user()->area_id) {
+                    abort(403, 'Acceso denegado. No tienes permisos para editar documentos de otras áreas.');
+                }
+
+                // Bloqueo para Coordinador CIAC
+                if (auth()->user()->role === 'coordinador_ciac' && $documento->ciac_id !== auth()->user()->ciac_id) {
+                    abort(403, 'Acceso denegado. No tienes permisos para modificar documentos ajenos a tu CIAC.');
+                }
+
                 // Evaluamos si es su primera asignación histórica en la SEFIN
                 $esPrimeraAsignacion = is_null($documento->fecha_primera_asignacion);
 
@@ -372,9 +414,10 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
                     'fecha_primera_asignacion' => $esPrimeraAsignacion ? $ahora : $documento->fecha_primera_asignacion
                 ]);
 
-                // 📋 Inyectamos automáticamente la fila de auditoría en la Bitácora
+                // Inyectamos automáticamente la fila de auditoría en la Bitácora
                 $documento->bitacora()->create([
                     'user_id' => $userId,
+                    'asignado_por' => auth()->user()->id,
                     'estatus_registrado' => 'PENDIENTE POR NOTIFICAR',
                     'tipo_documento_proceso' => null, // Movimiento puramente administrativo
                     'hora_inicio_visita' => null,
@@ -401,9 +444,19 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
 
     public function update(Request $request, $id)
     {
-        if (auth()->user()->role !== 'administrador') { abort(403); }
+        if (auth()->user()->role === 'notificador') { abort(403); }
     
         $documento = Documento::findOrFail($id);
+
+         // Bloqueo para Coordinador de Área
+        if (auth()->user()->role === 'coordinador_area' && $documento->area_id !== auth()->user()->area_id) {
+            abort(403, 'Acceso denegado. No tienes permisos para editar documentos de otras áreas.');
+        }
+
+        // Bloqueo para Coordinador CIAC
+        if (auth()->user()->role === 'coordinador_ciac' && $documento->ciac_id !== auth()->user()->ciac_id) {
+            abort(403, 'Acceso denegado. No tienes permisos para modificar documentos ajenos a tu CIAC.');
+        }
     
         $request->validate([
             'numero_control' => 'required|string|unique:documentos,numero_control,'.$id,

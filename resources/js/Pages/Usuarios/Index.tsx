@@ -9,13 +9,27 @@ interface Usuario {
     email: string;
     role: string;
     activo: boolean;
+    area_id?: number | null;
+    ciac_id?: number | null;
+}
+
+interface Area {
+    id: number;
+    nombre: string;
+}
+
+interface Ciac {
+    id: number;
+    nombre: string;
 }
 
 interface Props {
     usuarios: Usuario[];
+    areas: Area[];
+    ciacs: Ciac[];
 }
 
-export default function Index({ usuarios }: Props) {
+export default function Index({ usuarios,areas,ciacs }: Props) {
     const [editId, setEditId] = useState<number | null>(null);
 
     const { data, setData, post, put, delete: destroy, errors, reset, transform, processing } = useForm({
@@ -23,7 +37,9 @@ export default function Index({ usuarios }: Props) {
         email: '',
         password: '',
         role: 'notificador',
-        activo: true
+        activo: true,
+        area_id: '',
+        ciac_id: '',
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -33,7 +49,7 @@ export default function Index({ usuarios }: Props) {
         // No necesita la propiedad 'data' porque toma el estado del formulario en automático
         put(`/usuarios/${editId}`, {
             onSuccess: () => {
-                toast.success('Usuario y credenciales actualizados con éxito 👤');
+                toast.success('Usuario y credenciales actualizados con éxito');
                 setEditId(null);
                 reset();
             }
@@ -41,7 +57,7 @@ export default function Index({ usuarios }: Props) {
     } else {
         post('/usuarios', {
             onSuccess: () => {
-                toast.success('Nuevo usuario registrado 💻');
+                toast.success('Nuevo usuario registrado');
                 reset();
             }
         });
@@ -55,7 +71,9 @@ export default function Index({ usuarios }: Props) {
             email: user.email,
             password: '', // Se deja vacío, solo se llena si se quiere cambiar
             role: user.role,
-            activo: user.activo
+            activo: user.activo,
+            area_id: user.area_id ? user.area_id.toString() : '',
+            ciac_id: user.ciac_id ? user.ciac_id.toString() : ''
         });
     };
 
@@ -69,6 +87,8 @@ export default function Index({ usuarios }: Props) {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                area_id: user.area_id ? user.area_id.toString() : '',
+                ciac_id: user.ciac_id ? user.ciac_id.toString() : '',
                 activo: nuevoEstado, // Inyectamos el nuevo estado booleano
                 password: ''         // Mandamos la clave vacía para mantener la actual
             }));
@@ -120,11 +140,68 @@ export default function Index({ usuarios }: Props) {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Rol Institucional</label>
                                 <select value={data.role} onChange={e => setData('role', e.target.value)} className="w-full mt-1 p-2 border rounded dark:bg-gray-700 text-gray-900 dark:text-white">
-                                    <option value="notificador">Notificador de campo</option>
-                                    <option value="administrador">Administrador del sistema</option>
+                                        <option value="notificador">Notificador de campo</option>
+                                        <option value="administrador">Administrador del sistema</option>
+                                        <option value="coordinador_area">Coordinador de Área</option>
+                                        <option value="coordinador_ciac">Coordinador CIAC</option>
                                 </select>
                             </div>
 
+                            {data.role === 'coordinador_area' && (
+                                 <div className="animate-in slide-in-from-top-2 duration-200">
+        <label className="block text-amber-700 dark:text-amber-400 font-bold mb-1">
+            Asignar Área de Origen *
+        </label>
+        <select
+            value={data.area_id}
+            onChange={e => setData('area_id', e.target.value)}
+            className="w-full p-2.5 bg-amber-50/40 dark:bg-amber-950/10 border border-amber-200 rounded-xl text-gray-900 dark:text-white text-xs font-bold"
+            required
+        >
+            <option value="">— Selecciona el Área correspondiente —</option>
+            {areas.map(a => (
+                <option key={a.id} value={a.id}>{a.nombre}</option>
+            ))}
+        </select>
+    </div>
+
+                            )}
+
+                            {data.role === 'coordinador_ciac' && (
+                                 <div className="animate-in slide-in-from-top-2 duration-200">
+        <label className="block text-amber-700 dark:text-amber-400 font-bold mb-1">
+            Asignar CIAC de Origen *
+        </label>
+        <select
+            value={data.ciac_id}
+            onChange={e => setData('ciac_id', e.target.value)}
+            className="w-full p-2.5 bg-amber-50/40 dark:bg-amber-950/10 border border-amber-200 rounded-xl text-gray-900 dark:text-white text-xs font-bold"
+            required
+        >
+            <option value="">— Selecciona el CIAC correspondiente —</option>
+            {ciacs.map(c => (
+                <option key={c.id} value={c.id}>{c.nombre}</option>
+            ))}
+        </select>
+    </div>
+
+                            )}
+
+                            {/* 🚨 DETECTOR DE ERRORES OCULTOS EN EL MODAL DE USUARIOS */}
+{errors && Object.keys(errors).length > 0 && (
+    <div className="bg-rose-50 dark:bg-rose-950/20 border border-rose-200 p-3 rounded-xl text-[11px] text-rose-700 dark:text-rose-400 font-bold space-y-1">
+        <p className="uppercase tracking-wider">⚠️ Errores de validación del personal:</p>
+        <ul className="list-disc list-inside font-normal">
+            {Object.entries(errors).map(([campo, mensaje]) => (
+                <li key={campo} className="capitalize">
+                    <strong>{campo.replace('_', ' ')}:</strong> {mensaje}
+                </li>
+            ))}
+        </ul>
+    </div>
+)}
+
+                            
 
                             
 
@@ -179,6 +256,7 @@ export default function Index({ usuarios }: Props) {
                                 <button type="button" onClick={() => { setEditId(null); reset(); }} className="w-full bg-gray-400 text-white p-2.5 rounded-md mt-2">Cancelar</button>
                             )}
                         </form>
+
                     </div>
 
                     {/* TABLA DE USUARIOS */}
@@ -190,9 +268,21 @@ export default function Index({ usuarios }: Props) {
                                     <div className="space-y-1">
                                         <h4 className="font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
                                             {u.name}
-                                            <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${u.role === 'administrador' ? 'bg-purple-100 text-institucional' : 'bg-institucional-claro text-institucional-hover'}`}>
+                                            <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${u.role === 'administrador' || u.role === 'coordinador_ciac' || u.role === 'coordinador_area' ? 'bg-purple-100 text-institucional' : 'bg-institucional-claro text-institucional-hover'}`}>
                                                 {u.role.toUpperCase()}
                                             </span>
+                                            {u.ciac_id && (
+                                                <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${u.role === 'administrador'  || u.role === 'coordinador_ciac' || u.role === 'coordinador_area' ? 'bg-purple-100 text-institucional' : 'bg-institucional-claro text-institucional-hover'}`}>
+                                                    {ciacs.find(c => c.id === u.ciac_id)?.nombre}
+                                                </span>
+                                            )}
+
+                                            {u.area_id && (
+                                                <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${u.role === 'administrador' || u.role === 'coordinador_area' || u.role === 'coordinador_ciac' ? 'bg-purple-100 text-institucional' : 'bg-institucional-claro text-institucional-hover'}`}>
+                                                    {areas.find(a => a.id === u.area_id)?.nombre}
+                                                </span>
+                                            )}
+
                                             {!u.activo && <span className="text-[10px] px-2 py-0.5 rounded font-bold bg-red-100 text-red-800">🔒 BLOQUEADO</span>}
                                         </h4>
                                         <p className="text-xs text-gray-500">{u.email}</p>

@@ -103,11 +103,11 @@ const documentosFiltrados = documentos.filter(d =>
     };
 
     return (
-        <AuthenticatedLayout header={<div className="hidden sm:block text-xs font-bold text-gray-400">📲 Modo Operativo Activo</div>}>
+        <AuthenticatedLayout>
             <Head title="Mi Agenda de Campo" />
             
             {/* Contenedor móvil gris premium con colchón inferior para botones flotantes */}
-            <div className="mx-auto max-w-md bg-gray-50/50 dark:bg-gray-950 min-h-screen px-5 py-8 space-y-6 text-xs font-semibold text-gray-500 pb-24">
+            <div className="mx-auto max-w-7xl w-full bg-gray-50/50 dark:bg-gray-950 min-h-screen px-4 sm:px-6 lg:px-8 py-8 space-y-6 text-xs font-semibold text-gray-500 pb-24">
                 
 
 <div className="flex justify-between items-start select-none pt-4">

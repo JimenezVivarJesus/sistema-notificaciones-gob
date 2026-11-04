@@ -159,6 +159,12 @@ export default function Show({ documento, roleUsuario }: Props) {
                                                     </p>
                                                 )}
 
+                                                {b.asignado_por && (
+                                                    <p className="text-gray-600 dark:text-gray-400 font-normal bg-gray-50/50 dark:bg-gray-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-800/80 leading-relaxed text-xs">
+                                                        Asignado por: {b.asignador?.name}
+                                                    </p>
+                                                )}
+
                                                 <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[10px] font-mono text-gray-400">
                                                    
                                                     {b.ubicacion_gps && (

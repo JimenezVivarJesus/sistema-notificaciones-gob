@@ -15,6 +15,7 @@ class Bitacora extends Model
     protected $fillable = [
         'documento_id',
         'user_id',
+        'asignado_por',
         'estatus_registrado',
         'tipo_documento_proceso',
         'hora_inicio_visita',
@@ -47,4 +48,12 @@ class Bitacora extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
-}
+
+    /**
+    * Relación: Usuario que realizó la asignación del notificador al documento.
+    */
+    public function asignador(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'asignado_por');
+    }
+}   

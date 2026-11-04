@@ -3,7 +3,7 @@ import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import { Link, usePage } from '@inertiajs/react';
-import { PropsWithChildren, ReactNode, useState } from 'react';
+import React, { PropsWithChildren, ReactNode, useState } from 'react';
 
 export default function Authenticated({
     header,
@@ -25,25 +25,42 @@ export default function Authenticated({
                     <div className="flex h-16 justify-between">
                         <div className="flex">
                             <div className="flex shrink-0 items-center">
-                                <Link href="/">
-                                    <ApplicationLogo className="block h-19 w-auto fill-current text-gray-800" />
-                                </Link>
+                                <Link
+        href={
+            usuarioLogueado.role === 'notificador'
+                ? route('notificador.agenda')
+                : route('dashboard')
+        }
+    >
+        <ApplicationLogo className="block h-19 w-auto fill-current text-gray-800" />
+    </Link>
                             </div>
 
                             <div className="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex ">
+                                {usuarioLogueado.role !== 'notificador' && (
+                                    <React.Fragment>
                                 <NavLink
                                     href={route('dashboard')}
                                     active={route().current('dashboard')}
                                 >
                                     Dashboard
                                 </NavLink>
-                      
+
                                 <NavLink
                                     href={route('documentos.cargar')}
                                     active={route().current('documentos.cargar')} 
                                 >
                                     Notificaciones
                                 </NavLink>
+                                </React.Fragment>
+                                )}
+                      
+
+                                {usuarioLogueado.role === 'notificador' && (
+                                    <NavLink href={route('notificador.agenda')} active={route().current('notificador.agenda')}>
+                                        Mi Agenda
+                                    </NavLink>
+                                )}  
 
                                 {usuarioLogueado.role === 'administrador' && (
                                     <NavLink href={route('usuarios.index')} active={route().current('usuarios.index')}>
@@ -158,6 +175,8 @@ export default function Authenticated({
                     }
                 >
                     <div className="space-y-1 pb-3 pt-2">
+                        {usuarioLogueado.role !== 'notificador' && (
+                        <React.Fragment>
                         <ResponsiveNavLink
                             href={route('dashboard')}
                             active={route().current('dashboard')}
@@ -171,6 +190,16 @@ export default function Authenticated({
                         >
                             Notificaciones
                         </ResponsiveNavLink>
+                        </React.Fragment>
+                        )}
+
+                        {usuarioLogueado.role === 'notificador' && (
+                            <ResponsiveNavLink href={route('notificador.agenda')} active={route().current('notificador.agenda')}>
+                                Mi Agenda
+                            </ResponsiveNavLink>
+                        )}
+
+                        
 
                         {usuarioLogueado.role === 'administrador' && (
                             <ResponsiveNavLink href={route('usuarios.index')} active={route().current('usuarios.index')}>

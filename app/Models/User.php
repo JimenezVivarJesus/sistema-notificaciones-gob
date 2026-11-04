@@ -17,13 +17,15 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
-    // USAMOS LA PROPIEDAD CLÁSICA PROTEGIDA (A prueba de fallos de caché en Docker)
+
     protected $fillable = [
         'name',
         'email',
         'password',
-        'role', // Tu campo de segmentación gubernamental
-        'activo', // Nuevo campo para bloquear o permitir el acceso
+        'role', 
+        'activo', 
+        'area_id',
+        'ciac_id',
     ];
 
     protected $hidden = [
@@ -64,6 +66,14 @@ class User extends Authenticatable
     public function accionesBitacora(): HasMany
     {
         return $this->hasMany(Bitacora::class, 'user_id');
+    }
+
+    public function area() {
+        return $this->belongsTo(Area::class, 'area_id');
+    }
+
+    public function ciac() {
+        return $this->belongsTo(Ciac::class, 'ciac_id');
     }
 
 }

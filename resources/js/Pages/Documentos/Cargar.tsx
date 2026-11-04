@@ -8,6 +8,9 @@ interface Props {
     tiposDocumento: Array<{ id: number; nombre: string }>;
     ciacs: Array<{ id: number; nombre: string }>;
     notificadores: Array<{ id: number; name: string }>;
+    roleUsuario: string;
+    areaUsuario: string;
+    ciacUsuario: string;
     documentos: {
         data: Array<any>;
         links: Array<{ url: string | null; label: string; active: boolean }>;
@@ -31,13 +34,16 @@ export default function Cargar({
     notificadores,
     documentos,
     filtros,
+    roleUsuario,
+    areaUsuario,
+    ciacUsuario
 }: Props) {
     const [modalExcel, setModalExcel] = useState(false);
     const [modalIndividual, setModalIndividual] = useState(false);
 
     // Estados locales para los filtros dinámicos
     const [rfc, setRfc] = useState(filtros.rfc || "");
-    const [areaId, setAreaId] = useState(filtros.area_id || "");
+    const [areaId, setAreaId] = useState(filtros.area_id || '');
     const [estatus, setEstatus] = useState(filtros.estatus || "");
     const [ciac, setCiac] = useState(filtros.ciac || "");
     const [fecha, setFecha] = useState(filtros.fecha || "");
@@ -51,13 +57,13 @@ export default function Cargar({
     const formIndividual = useForm({
         numero_control: "",
         numero_oficio: "",
-        ciac_id: '',
+        ciac_id: (roleUsuario === 'coordinador_ciac') ? ciacUsuario : '',
         rfc_contribuyente: "",
         razon_social_contribuyente: "",
         domicilio_contribuyente: "",
         fecha_documento: "",
         referencias_domicilio: '',
-        area_id: "",
+        area_id: (roleUsuario === 'coordinador_area') ? areaUsuario : '',
         tipo_documento_id: "",
         user_id: "",
     });
@@ -168,7 +174,7 @@ export default function Cargar({
         formMasivo.post(route("documentos.cargarMasivo"), {
             forceFormData: true,
             onSuccess: () => {
-                toast.success("📊 Archivo masivo insertado con éxito.");
+                toast.success("Archivo masivo insertado con éxito.");
                 setModalExcel(false);
                 formMasivo.reset();
             },
@@ -240,6 +246,7 @@ export default function Cargar({
                         Inventario de Documentos de Notificación
                     </h2>
                     <div className="flex gap-2">
+                        {(roleUsuario === 'coordinador_ciac' || roleUsuario === 'administrador') ? (
                         <button
                             onClick={() => setModalExcel(true)}
                             className="inline-flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-900/60 px-3.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 shadow-sm"
@@ -265,6 +272,9 @@ export default function Cargar({
                             </svg>
                             Cargar Excel
                         </button>
+                        ):null}
+
+                    {(roleUsuario === 'coordinador_ciac' || roleUsuario === 'administrador') ? (
 
                         <button
                             onClick={() => setModalIndividual(true)}
@@ -285,6 +295,7 @@ export default function Cargar({
                             </svg>
                             Registro Manual
                         </button>
+                    ) : null}
                     </div>
                 </div>
             }
@@ -357,6 +368,8 @@ export default function Cargar({
                                 </option>
                             </select>
                         </div>
+
+                        
                         <div className="flex flex-col gap-1">
                             <label className="text-[10px] uppercase tracking-wider text-gray-400">
                                 CIAC Asignado
@@ -369,6 +382,7 @@ export default function Cargar({
                                         ciac: e.target.value,
                                     });
                                 }}
+                                disabled={roleUsuario === 'coordinador_ciac'}
                                 className="p-2 border rounded-lg dark:bg-gray-700 text-gray-900 dark:text-white"
                             >
                                 <option value="">Todos los CIACs</option>
@@ -378,7 +392,8 @@ export default function Cargar({
                                     </option>
                                 ))}
                             </select>
-                        </div>
+                        </div> 
+                
                         <div className="flex flex-col gap-1">
                             <label className="text-[10px] uppercase tracking-wider text-gray-400">
                                 Fecha del Documento
@@ -493,6 +508,9 @@ export default function Cargar({
                                                 seleccionados.length ===
                                                     documentos.data.length
                                             }
+                                            disabled={
+                                                roleUsuario === 'coordinador_area'
+                                            }
                                             onChange={toggleTodos}
                                             className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
                                         />
@@ -522,9 +540,16 @@ export default function Cargar({
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-gray-700 dark:text-gray-300 font-medium">
                                 {documentos.data.length > 0 ? (
                                     documentos.data.map((d, index) => (
+                                        
                                         <tr
                                             key={d.id}
-                                            className={`hover:bg-gray-50/50 dark:hover:bg-gray-900/30 transition-colors ${seleccionados.includes(d.id) && "bg-institucional-claro/50 dark:bg-institucional-claro"}`}
+                                            className={`transition-colors ${
+        seleccionados.includes(d.id)
+            ? "bg-institucional-claro/50 dark:bg-institucional-claro"
+            :  roleUsuario === 'coordinador_area' && d.area_id === areaUsuario
+                ? "bg-amber-50/80 dark:bg-amber-950/20 hover:bg-amber-50/80 dark:hover:bg-amber-900/30"
+                : "hover:bg-gray-50/50 dark:hover:bg-gray-900/30"
+    }`}
                                         >
                                             {/* CELDA FIJA IZQUIERDA: CHECKBOX INDIVIDUAL */}
                                             <td className="p-4 text-center sticky left-0 z-10 bg-white dark:bg-gray-800 border-r border-gray-100 dark:border-gray-800">
@@ -533,6 +558,10 @@ export default function Cargar({
                                                     checked={seleccionados.includes(
                                                         d.id,
                                                     )}
+
+                                                    disabled={
+                                                        roleUsuario === 'coordinador_area' && d.area_id !== areaUsuario
+                                                    }
                                                     onChange={() =>
                                                         toggleSeleccion(d.id)
                                                     }
@@ -637,14 +666,20 @@ export default function Cargar({
                                                             </svg>
                                                         </Link>
 
+                                                    {((roleUsuario === 'coordinador_area' && d.area_id === areaUsuario) || 
+      (roleUsuario === 'coordinador_ciac' && d.ciac_id === ciacUsuario)
+      || roleUsuario === 'coordinador_area' ||
+      roleUsuario === 'administrador') ? (
                                                         <button
                                                             onClick={() =>
                                                                 abrirModalEdicion(
                                                                     d,
                                                                 )
                                                             }
+                                                            
                                                             title="Editar documento"
-                                                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-md transition-all duration-150"
+                                                            disabled={roleUsuario === 'coordinador_area' && d.area_id !== areaUsuario}
+                                                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-md transition-all duration-150 disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-400"
                                                         >
                                                             <svg
                                                                 className="h-5 w-5"
@@ -660,6 +695,9 @@ export default function Cargar({
                                                                 />
                                                             </svg>
                                                         </button>
+      ) : null}
+
+      {(roleUsuario === 'administrador' || roleUsuario === 'coordinador_ciac' || roleUsuario === 'coordinador_area') ? (
 
                                                         <button
                                                             onClick={() =>
@@ -668,7 +706,8 @@ export default function Cargar({
                                                                 )
                                                             }
                                                             title="Eliminar documento"
-                                                            className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-md transition-all duration-150"
+                                                            disabled={roleUsuario === 'coordinador_area'}
+                                                            className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-md transition-all duration-150 disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-gray-400"
                                                         >
                                                             <svg
                                                                 className="h-5 w-5"
@@ -684,6 +723,7 @@ export default function Cargar({
                                                                 />
                                                             </svg>
                                                         </button>
+      ):null}
                                                     </div>
                                                 </div>
                                             </td>
@@ -946,6 +986,7 @@ export default function Cargar({
                                                     e.target.value,
                                                 )
                                             }
+                                            disabled={roleUsuario === 'coordinador_ciac'}
                                             className="mt-1 w-full p-2 border rounded-lg text-gray-900 dark:bg-gray-700 dark:text-white focus:ring-[#9D2449]"
                                             required
                                         >
