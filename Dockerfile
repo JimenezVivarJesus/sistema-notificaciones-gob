@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo pdo_pgsql pgsql gd zip bcmath intl \
+    && docker-php-ext-install pdo pdo_pgsql pgsql gd zip bcmath intl exif \
     && a2enmod rewrite \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 

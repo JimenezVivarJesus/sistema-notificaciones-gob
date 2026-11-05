@@ -514,7 +514,7 @@ public function registrarVisita(Request $request, $id)
 
     // Validamos que la foto provenga de una captura real de cámara (No de internet/galería)
     // Las fotos reales de dispositivos móviles contienen metadatos EXIF (marca de cámara, apertura, etc.)
-    $metaExif = @exif_read_data($foto->getRealPath());
+    $metaExif = (function_exists('exif_read_data') && $foto) ? @exif_read_data($foto->getRealPath()) : null;
     
     // Si la institución exige auditoría criptográfica estricta, puedes activar este bloque:
     // if (!$metaExif || !isset($metaExif['Model'])) {
