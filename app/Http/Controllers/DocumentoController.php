@@ -506,7 +506,7 @@ public function registrarVisita(Request $request, $id)
         'hora_fin_visita'          => 'required|date',
         'ubicacion_gps'            => 'required|string',
         'observaciones_operativas' => 'required|string',
-        'foto'                     => $esNoTrabajado ? 'nullable' : 'required|image|mimes:jpeg,png,jpg|max:8192', // Máximo 8MB
+        'foto'                     => $esNoTrabajado ? 'nullable' : 'required|image|mimes:jpeg,png,jpg,heic,webp|max:20480', // Maximo 20MB
     ]);
 
     $documento = Documento::findOrFail($id);
