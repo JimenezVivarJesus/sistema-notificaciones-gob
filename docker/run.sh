@@ -16,6 +16,9 @@ php artisan package:discover --ansi || true
 # Ejecuta las migraciones en PostgreSQL
 php artisan migrate --force || true
 
+# Ejecuta los seeders para crear usuarios iniciales
+php artisan db:seed --force || true
+
 # Cache de configuracion y rutas para velocidad
 php artisan config:cache || true
 php artisan route:cache || true
