@@ -6,8 +6,8 @@ RUN npm ci --legacy-peer-deps
 COPY . .
 RUN npm run build
 
-# Etapa 2: Imagen de PHP 8.3 con Apache para produccion
-FROM php:8.3-apache
+# Etapa 2: Imagen de PHP 8.4 con Apache para produccion
+FROM php:8.4-apache
 
 # Dependencias del sistema y extensiones para Laravel, PostgreSQL y PhpSpreadsheet
 RUN apt-get update && apt-get install -y \
