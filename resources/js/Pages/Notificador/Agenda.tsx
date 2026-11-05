@@ -30,16 +30,16 @@ export default function Agenda({ documentos }: Props) {
         observaciones_operativas: "",
     });
 
-    // 🚀 INYECTAR ADENTRO DE TU COMPONENTE PRINCIPAL AGENDA MÓVIL:
 
+    /*WEB SOCKET DE LARAVEL REVERB
     useEffect(() => {
-        /*/ 1. 📡 SOLICITUD DE HARDWARE: Pedimos permiso al empleado para lanzar alertas en su pantalla
+        // 1. 📡 SOLICITUD DE HARDWARE: Pedimos permiso al empleado para lanzar alertas en su pantalla
     PushNotifications.requestPermissions().then(result => {
         if (result.receive === 'granted') {
             // Si el notificador acepta, el celular se registra en el puente de mensajería
             PushNotifications.register();
         }
-    });*/
+    });
 
         // ESCUCHA DEL CANAL PRIVADO SEGURO DE LARAVEL REVERB
         // Escuchamos el canal exclusivo basado en el ID del notificador logueado
@@ -57,7 +57,24 @@ export default function Agenda({ documentos }: Props) {
         return () => {
             (window as any).Echo.leaveChannel(`user.${usuarioLogueado.id}`);
         };
-    }, []);
+    }, []);*/
+
+    useEffect(() => {
+    // Consulta al servidor cada 15 segundos
+    const intervalo = setInterval(() => {
+        // Solo recarga si el usuario tiene la pestaña o aplicación activa (ahorra datos y batería)
+        if (!document.hidden) {
+            router.reload({
+                only: ['documentos'],
+            });
+        }
+    }, 15000); // 15000 ms = 15 segundos
+
+    
+
+    // Limpieza al salir de la pantalla
+    return () => clearInterval(intervalo);
+}, []);
 
     //Efecto para inicializar el escáner de QR cuando isScanning es true
     useEffect(() => {

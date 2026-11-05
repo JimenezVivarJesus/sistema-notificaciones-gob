@@ -69,6 +69,7 @@ export default function Cargar({
     });
 
 
+    /*WEBSOCKET DE LARAVEL REVERB
     useEffect(() => {
     // Escuchamos el canal público que definimos en Laravel para recibir eventos de actualización de documentos
     (window as any).Echo.channel('sefin-canal')
@@ -90,7 +91,20 @@ export default function Cargar({
     return () => {
         (window as any).Echo.leaveChannel('sefin-canal');
     };
-    }, []);
+    }, []);*/
+
+    useEffect(() => {
+    // Consulta al servidor cada 20 segundos
+    const intervalo = setInterval(() => {
+        if (!document.hidden) {
+            router.reload({
+                only: ['documentos'],
+            });
+        }
+    }, 20000); // 20000 ms = 20 segundos
+
+    return () => clearInterval(intervalo);
+}, []);
 
 
 

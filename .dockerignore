@@ -1,0 +1,10 @@
+node_modules
+.git
+.github
+.env
+.env.backup
+.env.production
+tests
+storage/*.key
+public/hot
+
