@@ -10,6 +10,9 @@ sed -i "s/Listen 80/Listen ${PORT}/g" /etc/apache2/ports.conf
 # Enlace simbolico de storage
 php artisan storage:link || true
 
+# Descubrir paquetes de Laravel
+php artisan package:discover --ansi || true
+
 # Ejecuta las migraciones en PostgreSQL
 php artisan migrate --force || true
 
