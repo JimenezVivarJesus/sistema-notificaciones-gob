@@ -575,24 +575,49 @@ public function registrarVisita(Request $request, $id)
             'estatus' => $request->estatus_registrado
         ]);
 
-        // B. Inyectamos la fila de auditoría de campo dentro de la Bitacora
-        $documento->bitacora()->create([
-            'user_id'                  => auth()->id(),
-            'estatus_registrado'       => $request->estatus_registrado,
-            'tipo_documento_proceso'   => $request->tipo_documento_proceso,
-            'hora_inicio_visita'       => $request->hora_inicio_visita,
-            'hora_fin_visita'          => $request->hora_fin_visita,
-            'minutos_permanencia'      => $minutosPermanencia,
-            'ubicacion_gps'            => $request->ubicacion_gps,
-            'url_foto'                 => $urlFotoPublica,
-            'observaciones_operativas' => trim($request->observaciones_operativas),
-        ]);
+        // B. Inyectamos la fila de auditoría de campo dentro de la Bitacora con tolerancia a acentos
+        try {
+            $documento->bitacora()->create([
+                'user_id'                  => auth()->id(),
+                'estatus_registrado'       => $request->estatus_registrado,
+                'tipo_documento_proceso'   => $request->tipo_documento_proceso,
+                'hora_inicio_visita'       => $request->hora_inicio_visita,
+                'hora_fin_visita'          => $request->hora_fin_visita,
+                'minutos_permanencia'      => $minutosPermanencia,
+                'ubicacion_gps'            => $request->ubicacion_gps,
+                'url_foto'                 => $urlFotoPublica,
+                'observaciones_operativas' => trim($request->observaciones_operativas),
+            ]);
+        } catch (\Exception $e) {
+            // Si la base de datos aún tiene el check constraint estricto con acento ('ACTA DE NOTIFICACIÓN')
+            if (str_contains(strtoupper($request->tipo_documento_proceso ?? ''), 'NOTIFICACION')) {
+                $documento->bitacora()->create([
+                    'user_id'                  => auth()->id(),
+                    'estatus_registrado'       => $request->estatus_registrado,
+                    'tipo_documento_proceso'   => 'ACTA DE NOTIFICACIÓN',
+                    'hora_inicio_visita'       => $request->hora_inicio_visita,
+                    'hora_fin_visita'          => $request->hora_fin_visita,
+                    'minutos_permanencia'      => $minutosPermanencia,
+                    'ubicacion_gps'            => $request->ubicacion_gps,
+                    'url_foto'                 => $urlFotoPublica,
+                    'observaciones_operativas' => trim($request->observaciones_operativas),
+                ]);
+            } else {
+                throw $e;
+            }
+        }
     });
 
     // ALERTA EN TIEMPO REAL: Le avisamos al Administrador (canal público) y al celular (canal privado)
     // que el estatus cambió y se firmó el acta.
     event(new \App\Events\DocumentoActualizado($documento->user_id));
 
+    // Si la solicitud proviene de Inertia (navegación web/móvil normal), debemos retornar redirect
+    if ($request->header('X-Inertia')) {
+        return redirect()->back()->with('success', '¡Acta de territorio registrada y firmada digitalmente!');
+    }
+
+    // Si la solicitud proviene de Axios / API (sincronización en segundo plano sin conexión)
     if ($request->wantsJson() || $request->ajax()) {
         return response()->json([
             'success' => true,
