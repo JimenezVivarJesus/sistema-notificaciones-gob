@@ -583,6 +583,14 @@ public function registrarVisita(Request $request, $id)
     // que el estatus cambió y se firmó el acta.
     event(new \App\Events\DocumentoActualizado($documento->user_id));
 
+    if ($request->wantsJson() || $request->ajax()) {
+        return response()->json([
+            'success' => true,
+            'message' => '¡Acta de territorio registrada y firmada digitalmente!',
+            'documento_id' => $documento->id,
+        ]);
+    }
+
     return redirect()->back()->with('success', '¡Acta de territorio registrada y firmada digitalmente!');
 }
 

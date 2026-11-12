@@ -1,8 +1,16 @@
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, useForm, router, usePage } from "@inertiajs/react";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { Html5QrcodeScanner } from "html5-qrcode";
+import axios from "axios";
+import {
+    guardarVisitaOffline,
+    obtenerVisitasPendientes,
+    eliminarVisitaPendiente,
+    guardarAgendaCache,
+    obtenerAgendaCache,
+} from "@/utils/offlineStore";
 
 interface Props {
     documentos: Array<any>;
@@ -12,6 +20,12 @@ export default function Agenda({ documentos }: Props) {
     // Jalamos los datos globales de sesión para pintar el nombre personalizado
     const { auth } = usePage().props as any;
     const usuarioLogueado = auth.user;
+
+    const [docsList, setDocsList] = useState<any[]>(documentos || []);
+    const [pendingVisitasIds, setPendingVisitasIds] = useState<number[]>([]);
+    const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+    const [isSyncing, setIsSyncing] = useState<boolean>(false);
+    const syncingRef = useRef(false);
 
     const [docAbiertoId, setDocAbiertoId] = useState<number | null>(null);
     const [horaInicio, setHoraInicio] = useState<string | null>(null);
@@ -30,53 +44,159 @@ export default function Agenda({ documentos }: Props) {
         observaciones_operativas: "",
     });
 
-
-    /*WEB SOCKET DE LARAVEL REVERB
+    // 1. Guardar o recuperar caché de agenda en IndexedDB
     useEffect(() => {
-        // 1. 📡 SOLICITUD DE HARDWARE: Pedimos permiso al empleado para lanzar alertas en su pantalla
-    PushNotifications.requestPermissions().then(result => {
-        if (result.receive === 'granted') {
-            // Si el notificador acepta, el celular se registra en el puente de mensajería
-            PushNotifications.register();
-        }
-    });
-
-        // ESCUCHA DEL CANAL PRIVADO SEGURO DE LARAVEL REVERB
-        // Escuchamos el canal exclusivo basado en el ID del notificador logueado
-        (window as any).Echo.private(`user.${usuarioLogueado.id}`).listen(
-            "DocumentoActualizado",
-            (e: any) => {
-                // A. AUTO-REFRESCO AUTOMÁTICO: Le pedimos a Inertia refrescar solo sus folios
-                router.reload({
-                    only: ["documentos"],
-                });
-            },
-        );
-
-        // 🧹 Limpieza de antena al salir de la pantalla móvil
-        return () => {
-            (window as any).Echo.leaveChannel(`user.${usuarioLogueado.id}`);
-        };
-    }, []);*/
-
-    useEffect(() => {
-    // Consulta al servidor cada 15 segundos
-    const intervalo = setInterval(() => {
-        // Solo recarga si el usuario tiene la pestaña o aplicación activa (ahorra datos y batería)
-        if (!document.hidden) {
-            router.reload({
-                only: ['documentos'],
+        if (documentos && documentos.length > 0) {
+            setDocsList(documentos);
+            guardarAgendaCache(documentos);
+        } else if (!navigator.onLine) {
+            obtenerAgendaCache().then((cached) => {
+                if (cached && cached.length > 0) {
+                    setDocsList(cached);
+                }
             });
         }
-    }, 15000); // 15000 ms = 15 segundos
+    }, [documentos]);
 
-    
+    // 2. Cargar visitas pendientes de sincronización al iniciar
+    useEffect(() => {
+        obtenerVisitasPendientes().then((pendientes) => {
+            setPendingVisitasIds(pendientes.map((p) => p.documentoId));
+        });
 
-    // Limpieza al salir de la pantalla
-    return () => clearInterval(intervalo);
-}, []);
+        if (!navigator.onLine) {
+            obtenerAgendaCache().then((cached) => {
+                if (cached && cached.length > 0) {
+                    setDocsList(cached);
+                }
+            });
+        }
+    }, []);
 
-    //Efecto para inicializar el escáner de QR cuando isScanning es true
+    // 3. Función de Sincronización 100% Automática y Desatendida
+    const autoSincronizar = async () => {
+        if (!navigator.onLine || syncingRef.current) return;
+
+        try {
+            const pendientes = await obtenerVisitasPendientes();
+            if (pendientes.length === 0) return;
+
+            syncingRef.current = true;
+            setIsSyncing(true);
+            let exitosos = 0;
+
+            for (const item of pendientes) {
+                try {
+                    const formData = new FormData();
+                    formData.append("estatus_registrado", item.data.estatus_registrado);
+                    formData.append("tipo_documento_proceso", item.data.tipo_documento_proceso || "");
+                    formData.append("hora_inicio_visita", item.data.hora_inicio_visita);
+                    formData.append("hora_fin_visita", item.data.hora_fin_visita);
+                    formData.append("ubicacion_gps", item.data.ubicacion_gps);
+                    formData.append("observaciones_operativas", item.data.observaciones_operativas);
+
+                    if (item.fotoBlob) {
+                        const file = new File(
+                            [item.fotoBlob],
+                            item.fotoName || `evidencia_${item.documentoId}.jpg`,
+                            { type: item.fotoBlob.type || "image/jpeg" }
+                        );
+                        formData.append("foto", file);
+                    }
+
+                    await axios.post(
+                        `/documentos/${item.documentoId}/registrar-visita`,
+                        formData,
+                        {
+                            headers: {
+                                "Content-Type": "multipart/form-data",
+                                Accept: "application/json",
+                            },
+                        }
+                    );
+
+                    if (item.id !== undefined) {
+                        await eliminarVisitaPendiente(item.id);
+                    }
+                    exitosos++;
+                } catch (err) {
+                    console.error(`Error al sincronizar diligencia #${item.documentoId}:`, err);
+                    // Si se corta la señal en pleno envío, detener para reintentar al reconectar
+                    break;
+                }
+            }
+
+            const restantes = await obtenerVisitasPendientes();
+            setPendingVisitasIds(restantes.map((r) => r.documentoId));
+
+            if (exitosos > 0) {
+                toast.success(
+                    exitosos === 1
+                        ? "✅ 1 diligencia sincronizada automáticamente con éxito."
+                        : `✅ ${exitosos} diligencias sincronizadas automáticamente con éxito.`,
+                    { icon: "📡", duration: 4500 }
+                );
+                router.reload({ only: ["documentos"] });
+            }
+        } finally {
+            syncingRef.current = false;
+            setIsSyncing(false);
+        }
+    };
+
+    // 4. Monitoreo automático de conexión a internet
+    useEffect(() => {
+        const handleOnline = () => {
+            setIsOnline(true);
+            toast.success("Señal de internet recuperada. Sincronizando...", {
+                icon: "📶",
+                duration: 3000,
+            });
+            autoSincronizar();
+        };
+
+        const handleOffline = () => {
+            setIsOnline(false);
+            toast("Sin conexión a internet. Modo fuera de línea activo.", {
+                icon: "⚠️",
+                duration: 3500,
+            });
+        };
+
+        window.addEventListener("online", handleOnline);
+        window.addEventListener("offline", handleOffline);
+
+        // Monitor de sincronización cada 20 segundos por si recupera señal
+        const syncInterval = setInterval(() => {
+            if (navigator.onLine) {
+                autoSincronizar();
+            }
+        }, 20000);
+
+        // Intento de sincronización al cargar
+        autoSincronizar();
+
+        return () => {
+            window.removeEventListener("online", handleOnline);
+            window.removeEventListener("offline", handleOffline);
+            clearInterval(syncInterval);
+        };
+    }, []);
+
+    // Consulta periódica si hay conexión activa
+    useEffect(() => {
+        const intervalo = setInterval(() => {
+            if (!document.hidden && navigator.onLine) {
+                router.reload({
+                    only: ['documentos'],
+                });
+            }
+        }, 15000);
+
+        return () => clearInterval(intervalo);
+    }, []);
+
+    // Efecto para inicializar el escáner de QR cuando isScanning es true
     useEffect(() => {
         let scanner: Html5QrcodeScanner | null = null;
 
@@ -92,14 +212,12 @@ export default function Agenda({ documentos }: Props) {
 
             scanner.render(
                 (decodedText) => {
-                    // Al detectar el código: se coloca en la búsqueda y se apaga la cámara
                     setBusqueda(decodedText);
                     setIsScanning(false);
                     scanner?.clear();
                     toast.success(`Código detectado: ${decodedText}`);
 
-                    // Abre la tarjeta automáticamente si coincide el número de control
-                    const docCoincidente = documentos.find(
+                    const docCoincidente = docsList.find(
                         (d) =>
                             d.numero_control === decodedText ||
                             d.numero_oficio === decodedText,
@@ -108,9 +226,7 @@ export default function Agenda({ documentos }: Props) {
                         setDocAbiertoId(docCoincidente.id);
                     }
                 },
-                (error) => {
-                    // Ignora lecturas intermedias vacías
-                },
+                () => {},
             );
         }
 
@@ -123,13 +239,11 @@ export default function Agenda({ documentos }: Props) {
                     );
             }
         };
-    }, [isScanning]);
+    }, [isScanning, docsList]);
 
-    const documentosFiltrados = documentos.filter(
+    const documentosFiltrados = docsList.filter(
         (d) =>
-            // 1. Candado de oro: Solo se muestran si pertenecen al notificador activo
             d.user_id === usuarioLogueado.id &&
-            // 🚀 El uso de ?.toLowerCase() || '' evita errores fatales si el campo es null en la base de datos
             ((d.numero_oficio?.toLowerCase() || "").includes(
                 busqueda.toLowerCase(),
             ) ||
@@ -156,10 +270,44 @@ export default function Agenda({ documentos }: Props) {
         toast("Cronómetro activado. Realiza la diligencia.", { icon: "⏱️" });
     };
 
-    const handleRegistrarVisita = (e: React.FormEvent, documentoId: number) => {
+    const handleRegistrarVisita = async (e: React.FormEvent, documentoId: number) => {
         e.preventDefault();
         const ahoraFin = new Date().toISOString();
 
+        // 1. Si no hay conexión en este instante, guardar de inmediato en IndexedDB
+        if (!navigator.onLine) {
+            try {
+                await guardarVisitaOffline({
+                    documentoId,
+                    data: {
+                        estatus_registrado: formBitacora.data.estatus_registrado,
+                        tipo_documento_proceso: formBitacora.data.tipo_documento_proceso,
+                        hora_inicio_visita: formBitacora.data.hora_inicio_visita || ahoraFin,
+                        hora_fin_visita: ahoraFin,
+                        ubicacion_gps: formBitacora.data.ubicacion_gps || "0, 0",
+                        observaciones_operativas: formBitacora.data.observaciones_operativas,
+                    },
+                    fotoBlob: formBitacora.data.foto ? formBitacora.data.foto : null,
+                    fotoName: formBitacora.data.foto ? formBitacora.data.foto.name : null,
+                    timestamp: ahoraFin,
+                });
+
+                setPendingVisitasIds((prev) => [...prev, documentoId]);
+                toast.success(
+                    "📍 Diligencia guardada en el teléfono. Se enviará automáticamente cuando el celular detecte señal.",
+                    { duration: 5500, icon: "💾" }
+                );
+                setDocAbiertoId(null);
+                setHoraInicio(null);
+                formBitacora.reset();
+            } catch (error) {
+                console.error("Error al guardar visita offline:", error);
+                toast.error("Error al guardar en memoria local.");
+            }
+            return;
+        }
+
+        // 2. Si hay conexión, enviar normalmente
         router.post(
             `/documentos/${documentoId}/registrar-visita`,
             {
@@ -173,6 +321,37 @@ export default function Agenda({ documentos }: Props) {
                     setDocAbiertoId(null);
                     setHoraInicio(null);
                     formBitacora.reset();
+                },
+                onError: async () => {
+                    // Si se corta la señal durante el envío, rescatar en IndexedDB
+                    if (!navigator.onLine) {
+                        try {
+                            await guardarVisitaOffline({
+                                documentoId,
+                                data: {
+                                    estatus_registrado: formBitacora.data.estatus_registrado,
+                                    tipo_documento_proceso: formBitacora.data.tipo_documento_proceso,
+                                    hora_inicio_visita: formBitacora.data.hora_inicio_visita || ahoraFin,
+                                    hora_fin_visita: ahoraFin,
+                                    ubicacion_gps: formBitacora.data.ubicacion_gps || "0, 0",
+                                    observaciones_operativas: formBitacora.data.observaciones_operativas,
+                                },
+                                fotoBlob: formBitacora.data.foto ? formBitacora.data.foto : null,
+                                fotoName: formBitacora.data.foto ? formBitacora.data.foto.name : null,
+                                timestamp: ahoraFin,
+                            });
+                            setPendingVisitasIds((prev) => [...prev, documentoId]);
+                            toast.success(
+                                "📍 Conexión interrumpida. Guardado en memoria para sincronización automática.",
+                                { duration: 5500, icon: "💾" }
+                            );
+                            setDocAbiertoId(null);
+                            setHoraInicio(null);
+                            formBitacora.reset();
+                        } catch (err) {
+                            console.error(err);
+                        }
+                    }
                 },
             },
         );
@@ -196,6 +375,25 @@ export default function Agenda({ documentos }: Props) {
                         <p className="text-[11px] text-gray-400 font-medium tracking-wide pl-0.5 font-sans not-italic">
                             Esta es tu ruta de notificaciones asignada para hoy.
                         </p>
+                        <div className="pt-1 flex flex-wrap items-center gap-2">
+                            {!isOnline ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/30">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping"></span>
+                                    <span>Modo Sin Conexión (Offline)</span>
+                                </span>
+                            ) : isSyncing ? (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-700 dark:text-blue-400 border border-blue-500/30">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-spin"></span>
+                                    <span>Sincronizando automáticamente...</span>
+                                </span>
+                            ) : null}
+
+                            {pendingVisitasIds.length > 0 && (
+                                <span className="text-[10px] font-bold text-amber-700 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-950/60 px-2.5 py-0.5 rounded-full border border-amber-300/50">
+                                    ⏳ {pendingVisitasIds.length} diligencia(s) guardadas en espera de señal
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <div className="h-11 w-11 rounded-2xl bg-[#9D2449]/10 text-[#9D2449] font-black flex items-center justify-center border border-[#9D2449]/20 shadow-sm text-sm shrink-0">
                         {usuarioLogueado.name.charAt(0)}
@@ -327,6 +525,11 @@ export default function Agenda({ documentos }: Props) {
                                             <span className="text-gray-500 font-sans font-bold">
                                                 {d.tipo_documento?.nombre}
                                             </span>
+                                            {pendingVisitasIds.includes(d.id) && (
+                                                <span className="bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 text-[9px] px-2 py-0.5 rounded-full font-bold ml-1 animate-pulse border border-amber-300">
+                                                    ⏳ Guardado en teléfono (Pendiente de envío)
+                                                </span>
+                                            )}
                                         </div>
                                         <h4 className="text-sm font-black tracking-tight text-gray-900 dark:text-white uppercase leading-snug">
                                             {d.razon_social_contribuyente}
@@ -390,7 +593,16 @@ export default function Agenda({ documentos }: Props) {
                                             </div>
                                         </div>
 
-                                        {!horaInicio ? (
+                                        {pendingVisitasIds.includes(d.id) ? (
+                                            <div className="p-4 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-900/50 text-center space-y-1.5">
+                                                <p className="font-bold text-amber-800 dark:text-amber-300 text-xs flex items-center justify-center gap-1.5">
+                                                    <span>⏳</span> Diligencia guardada en el teléfono
+                                                </p>
+                                                <p className="text-[11px] text-amber-700/90 dark:text-amber-400">
+                                                    El acta y la fotografía de evidencia están almacenadas en la memoria local. Se sincronizarán automáticamente con el servidor en cuanto el celular detecte señal de internet.
+                                                </p>
+                                            </div>
+                                        ) : !horaInicio ? (
                                             <button
                                                 type="button"
                                                 onClick={() =>
