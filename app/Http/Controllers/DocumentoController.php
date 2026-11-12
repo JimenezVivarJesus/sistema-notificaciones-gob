@@ -514,6 +514,16 @@ public function registrarVisita(Request $request, $id)
         abort(403, 'Acceso denegado.');
     }
 
+    // Normalizar tipo de documento para evitar conflictos con acentos en la base de datos
+    if ($request->filled('tipo_documento_proceso')) {
+        $tipoNormalizado = str_replace(
+            ['NOTIFICACIÓN', 'notificación'],
+            ['NOTIFICACION', 'notificacion'],
+            $request->input('tipo_documento_proceso')
+        );
+        $request->merge(['tipo_documento_proceso' => $tipoNormalizado]);
+    }
+
     $esNoTrabajado = $request->input('estatus_registrado') === 'NO TRABAJADO';
 
     $request->validate([
