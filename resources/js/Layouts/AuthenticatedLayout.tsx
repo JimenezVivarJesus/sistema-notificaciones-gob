@@ -3,7 +3,10 @@ import Dropdown from '@/Components/Dropdown';
 import NavLink from '@/Components/NavLink';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink';
 import { Link, usePage } from '@inertiajs/react';
-import React, { PropsWithChildren, ReactNode, useState } from 'react';
+import React, { PropsWithChildren, ReactNode, useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
+import axios from 'axios';
 
 export default function Authenticated({
     header,
@@ -16,6 +19,50 @@ export default function Authenticated({
 
     const [showingNavigationDropdown, setShowingNavigationDropdown] =
         useState(false);
+
+    useEffect(() => {
+        if (!Capacitor.isNativePlatform()) return;
+
+        let regSub: any = null;
+        let notifSub: any = null;
+
+        const registrarPush = async () => {
+            try {
+                let permStatus = await PushNotifications.checkPermissions();
+
+                if (permStatus.receive === 'prompt') {
+                    permStatus = await PushNotifications.requestPermissions();
+                }
+
+                if (permStatus.receive === 'granted') {
+                    await PushNotifications.register();
+                }
+            } catch (error) {
+                console.error('Error al inicializar notificaciones push en dispositivo:', error);
+            }
+        };
+
+        PushNotifications.addListener('registration', (token) => {
+            axios.post('/fcm-token', { token: token.value }).catch((err) => {
+                console.error('Error al guardar token FCM en servidor:', err);
+            });
+        }).then((sub) => {
+            regSub = sub;
+        });
+
+        PushNotifications.addListener('pushNotificationReceived', (notification) => {
+            console.log('Notificación push recibida:', notification);
+        }).then((sub) => {
+            notifSub = sub;
+        });
+
+        registrarPush();
+
+        return () => {
+            if (regSub) regSub.remove();
+            if (notifSub) notifSub.remove();
+        };
+    }, []);
 
     return (
         <div className="min-h-screen bg-gray-100">

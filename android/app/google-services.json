@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "384457685316",
+    "project_id": "sefin-notificaciones",
+    "storage_bucket": "sefin-notificaciones.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:384457685316:android:5895621f39f39325743f11",
+        "android_client_info": {
+          "package_name": "com.sefin.notificaciones"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9Javnm7U2yuMoNDAId4bvOZdf1PtmsgQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -112,4 +112,21 @@ class UsuarioController extends Controller
         $usuario->delete();
         return redirect()->back();
     }
+
+    // 5. REGISTRAR TOKEN FCM PARA NOTIFICACIONES PUSH
+    public function guardarFcmToken(Request $request)
+    {
+        $request->validate([
+            'token' => 'required|string',
+        ]);
+
+        auth()->user()->update([
+            'fcm_token' => $request->token,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Token FCM registrado correctamente.',
+        ]);
+    }
 }

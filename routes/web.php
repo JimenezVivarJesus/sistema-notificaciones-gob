@@ -52,6 +52,7 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/documentos/{id}', [DocumentoController::class, 'destroy'])->name('documentos.destroy');
     Route::post('/documentos/cargar-masivo', [DocumentoController::class, 'cargarMasivo'])->name('documentos.cargarMasivo');
     Route::post('/documentos/asignar-masivo', [DocumentoController::class, 'asignarMasivo'])->name('documentos.asignarMasivo');
+    Route::post('/fcm-token', [UsuarioController::class, 'guardarFcmToken'])->name('fcm.token');
 
     // Rutas de catálogos
     Route::get('/catalogos', function () {

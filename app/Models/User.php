@@ -26,6 +26,7 @@ class User extends Authenticatable
         'activo', 
         'area_id',
         'ciac_id',
+        'fcm_token',
     ];
 
     protected $hidden = [

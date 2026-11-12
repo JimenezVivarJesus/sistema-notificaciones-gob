@@ -432,6 +432,23 @@ $documento->ultima_asig_legible = $documento->fecha_ultima_asignacion ? $documen
         //Le avisamos al nuevo notificador que le llegó trabajo
     event(new \App\Events\DocumentoActualizado($userId));
 
+    // Disparar Notificación Push nativa al teléfono del notificador
+    $notificador = \App\Models\User::find($userId);
+    if ($notificador && !empty($notificador->fcm_token)) {
+        $total = count($documentoIds);
+        $titulo = 'Nuevas diligencias asignadas 📋';
+        $cuerpo = $total === 1 
+            ? 'Se te ha asignado 1 nueva diligencia para notificación.'
+            : "Se te han asignado {$total} nuevas diligencias en tu ruta.";
+
+        \App\Services\FirebaseNotificationService::enviar(
+            $notificador->fcm_token,
+            $titulo,
+            $cuerpo,
+            ['tipo' => 'asignacion_diligencias']
+        );
+    }
+
     //Le avisamos a los notificadores anteriores para que quiten los folios de su pantalla
     foreach ($notificadoresAnteriores as $antiguoId) {
         if ($antiguoId != $userId) {
