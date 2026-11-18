@@ -6,7 +6,8 @@ const config: CapacitorConfig = {
   webDir: 'public',
   server: {
     url: 'https://sistema-notificaciones-knqh.onrender.com',
-    cleartext: true
+    cleartext: true,
+    errorPath: 'offline.html'
   }
 };
 

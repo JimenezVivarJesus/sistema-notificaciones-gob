@@ -402,8 +402,8 @@ export default function Agenda({ documentos }: Props) {
             <Head title="Mi Agenda de Campo" />
 
             {/* Contenedor móvil gris premium con colchón inferior para botones flotantes */}
-            <div className="mx-auto max-w-7xl w-full bg-gray-50/50 dark:bg-gray-950 min-h-screen px-4 sm:px-6 lg:px-8 pt-16 sm:pt-20 pb-24 space-y-6 text-xs font-semibold text-gray-500">
-                <div className="flex justify-between items-start select-none pt-4 sm:pt-6">
+            <div className="mx-auto max-w-7xl w-full bg-gray-50/50 dark:bg-gray-950 min-h-screen px-4 sm:px-6 lg:px-8 py-8 space-y-6 text-xs font-semibold text-gray-500 pb-24">
+                <div className="flex justify-between items-start select-none pt-4">
                     <div className="space-y-1">
                         {/* font-serif, italic y font-light simulan de forma hermosa el trazo manuscrito e institucional */}
                         <h1 className="text-3xl font-light text-gray-800 dark:text-gray-100 tracking-tight font-serif italic">

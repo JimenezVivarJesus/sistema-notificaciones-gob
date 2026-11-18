@@ -67,7 +67,16 @@ export default function Authenticated({
     return (
         <div className="min-h-screen bg-gray-100">
 
-            <nav className="border-b border-black/10 bg-institucional shadow-md text-white">
+            {/* 📌 Cabecera fija (Sticky Navbar + Franja institucional) */}
+            <div className="sticky top-0 z-40 shadow-sm">
+                <nav 
+                    className="border-b border-black/10 bg-institucional shadow-md text-white transition-all duration-200"
+                    style={{
+                        paddingTop: Capacitor.isNativePlatform()
+                            ? 'max(env(safe-area-inset-top, 0px), 34px)'
+                            : 'env(safe-area-inset-top, 0px)',
+                    }}
+                >
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 justify-between">
                         <div className="flex">
@@ -300,6 +309,7 @@ export default function Authenticated({
                 className="w-full h-full object-cover opacity-100"
             />
         </div>
+            </div>
 
             {header && (
                 <header className="bg-white shadow">

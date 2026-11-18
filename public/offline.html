@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Iniciar Sesión - Notificaciones SEFIN</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f9fafb;
+            color: #111827;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        @media (min-width: 768px) {
+            body {
+                flex-direction: row;
+            }
+        }
+
+        /* Panel Institucional (Banner) */
+        .banner-panel {
+            position: relative;
+            width: 100%;
+            height: 12rem; /* 192px */
+            background-color: #0c0a09;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        @media (min-width: 768px) {
+            .banner-panel {
+                width: 50%;
+                min-height: 100vh;
+                height: auto;
+                padding: 3rem;
+            }
+        }
+
+        .banner-bg-img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+        }
+
+        .banner-gradient {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(157, 36, 73, 0.95), rgba(157, 36, 73, 0.8), rgba(12, 10, 9, 0.7));
+            z-index: 10;
+        }
+
+        .banner-content {
+            position: relative;
+            z-index: 20;
+            max-width: 28rem;
+            text-align: center;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        @media (min-width: 768px) {
+            .banner-content {
+                gap: 1.5rem;
+            }
+        }
+
+        .logo-box {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            display: inline-block;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        @media (min-width: 768px) {
+            .logo-box {
+                padding: 0.75rem 1.25rem;
+                border-radius: 1rem;
+            }
+        }
+
+        .logo-img {
+            height: 2.5rem; /* 40px */
+            width: auto;
+            filter: brightness(0) invert(1);
+            display: block;
+        }
+
+        @media (min-width: 768px) {
+            .logo-img {
+                height: 3.75rem; /* 60px */
+            }
+        }
+
+        .banner-title {
+            font-size: 1.25rem;
+            font-weight: 900;
+            line-height: 1.25;
+            letter-spacing: -0.025em;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        @media (min-width: 768px) {
+            .banner-title {
+                font-size: 2rem;
+            }
+        }
+
+        .banner-desc {
+            font-size: 0.6875rem; /* 11px */
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+            line-height: 1.4;
+            max-width: 20rem;
+        }
+
+        @media (min-width: 768px) {
+            .banner-desc {
+                font-size: 0.875rem; /* 14px */
+                max-width: none;
+            }
+        }
+
+        /* Columna de Formulario */
+        .form-panel {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            background-color: #ffffff;
+        }
+
+        @media (min-width: 768px) {
+            .form-panel {
+                width: 50%;
+                padding: 3rem;
+            }
+        }
+
+        .form-container {
+            width: 100%;
+            max-width: 26rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .form-header h2 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            letter-spacing: -0.025em;
+            color: #030712;
+        }
+
+        .form-header p {
+            font-size: 0.75rem;
+            color: #6b7280;
+            margin-top: 0.25rem;
+        }
+
+        /* Tarjeta de Aviso Offline */
+        .offline-notice {
+            background-color: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-start;
+            font-size: 0.75rem;
+            color: #92400e;
+            line-height: 1.4;
+        }
+
+        .offline-notice .badge-icon {
+            font-size: 1.1rem;
+            line-height: 1;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+        }
+
+        .form-group label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #4b5563;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            font-size: 0.875rem;
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db;
+            background-color: #f9fafb;
+            color: #111827;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #9D2449;
+            box-shadow: 0 0 0 3px rgba(157, 36, 73, 0.15);
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            color: #4b5563;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .btn-primary {
+            width: 100%;
+            background-color: #9D2449;
+            color: #ffffff;
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 700;
+            font-size: 0.875rem;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.15s ease, transform 0.1s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.99);
+            background-color: #7a1b38;
+        }
+
+        .btn-secondary {
+            width: 100%;
+            background-color: #f3f4f6;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+            padding: 0.65rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+        }
+
+        .btn-secondary:active {
+            background-color: #e5e7eb;
+        }
+
+        /* Banner de estado de reconexión */
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            background-color: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+            align-self: flex-start;
+        }
+
+        .status-dot {
+            width: 0.4rem;
+            height: 0.4rem;
+            border-radius: 50%;
+            background-color: #f59e0b;
+        }
+
+        .status-pill.online {
+            background-color: #d1fae5;
+            color: #065f46;
+            border-color: #a7f3d0;
+        }
+
+        .status-pill.online .status-dot {
+            background-color: #10b981;
+        }
+
+        /* Toast de error */
+        #offlineToast {
+            display: none;
+            background-color: #ef4444;
+            color: #ffffff;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.65rem 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 🏛️ PANEL INSTITUCIONAL -->
+    <div class="banner-panel">
+        <img src="imagen-login.jpg" alt="Gobierno de Oaxaca" class="banner-bg-img" onerror="this.src='/imagen-login.jpg'">
+        <div class="banner-gradient"></div>
+        <div class="banner-content">
+            <div class="logo-box">
+                <img src="logo-oaxaca.png" alt="Oaxaca" class="logo-img" onerror="this.src='/logo-oaxaca.png'">
+            </div>
+            <div>
+                <h1 class="banner-title">Sistema de Notificaciones</h1>
+                <p class="banner-desc">Plataforma oficial para el control y seguimiento de actas de notificaciones y citatorios.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUMNA FORMULARIO -->
+    <div class="form-panel">
+        <div class="form-container">
+            
+            <div class="status-pill" id="statusPill">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">Buscando señal de internet...</span>
+            </div>
+
+            <div class="form-header">
+                <h2>Ingreso al Sistema</h2>
+                <p>Digita tus credenciales institucionales autorizadas por el Administrador.</p>
+            </div>
+
+            <!-- Aviso Offline -->
+            <div class="offline-notice">
+                <span class="badge-icon">⚠️</span>
+                <div>
+                    <strong>Sin conexión a internet:</strong> Para ingresar por primera vez, el dispositivo requiere conexión para autenticar tu cuenta con el servidor. En cuanto se detecte señal, la app se conectará automáticamente.
+                </div>
+            </div>
+
+            <div id="offlineToast">
+                ⚠️ No es posible iniciar sesión sin internet por primera vez. Conéctate a Wi-Fi o datos móviles.
+            </div>
+
+            <form id="loginForm" onsubmit="handleLoginSubmit(event)" style="display: flex; flex-direction: column; gap: 1rem;">
+                <div class="form-group">
+                    <label for="email">Correo Institucional</label>
+                    <input type="email" id="email" class="form-control" placeholder="ejemplo@gob.mx" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Contraseña de Acceso</label>
+                    <input type="password" id="password" class="form-control" placeholder="••••••••" required>
+                </div>
+
+                <label class="checkbox-container">
+                    <input type="checkbox" checked>
+                    <span>Mantener sesión abierta en este equipo</span>
+                </label>
+
+                <button type="submit" class="btn-primary">
+                    Iniciar Sesión
+                </button>
+
+                <button type="button" class="btn-secondary" onclick="intentarReconexion()">
+                    🔄 Reintentar conexión con servidor
+                </button>
+            </form>
+
+        </div>
+    </div>
+
+    <script>
+        const RENDER_URL = 'https://sistema-notificaciones-knqh.onrender.com';
+
+        function intentarReconexion() {
+            const statusText = document.getElementById('statusText');
+            const statusPill = document.getElementById('statusPill');
+            const statusDot = document.getElementById('statusDot');
+
+            statusText.innerText = "Comprobando conexión...";
+            statusDot.style.backgroundColor = "#3b82f6";
+            statusPill.style.backgroundColor = "#dbeafe";
+            statusPill.style.color = "#1e40af";
+            statusPill.style.borderColor = "#bfdbfe";
+
+            // Intentar verificar conectividad
+            fetch(RENDER_URL + '/favicon.png?t=' + Date.now(), { mode: 'no-cors' })
+                .then(() => {
+                    statusText.innerText = "¡Conexión exitosa! Redirigiendo...";
+                    statusDot.style.backgroundColor = "#10b981";
+                    statusPill.className = "status-pill online";
+                    setTimeout(() => {
+                        window.location.href = RENDER_URL;
+                    }, 500);
+                })
+                .catch(() => {
+                    setTimeout(() => {
+                        statusText.innerText = "Sin señal de internet";
+                        statusDot.style.backgroundColor = "#f59e0b";
+                        statusPill.className = "status-pill";
+                        mostrarToast();
+                    }, 1000);
+                });
+        }
+
+        function handleLoginSubmit(e) {
+            e.preventDefault();
+            mostrarToast();
+            intentarReconexion();
+        }
+
+        function mostrarToast() {
+            const toast = document.getElementById('offlineToast');
+            toast.style.display = 'block';
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 5000);
+        }
+
+        // Monitoreo en tiempo real de eventos online del navegador
+        window.addEventListener('online', () => {
+            intentarReconexion();
+        });
+
+        // Verificación periódica cada 4 segundos por si recupera señal silenciosamente
+        setInterval(() => {
+            if (navigator.onLine) {
+                fetch(RENDER_URL + '/favicon.png?t=' + Date.now(), { mode: 'no-cors' })
+                    .then(() => {
+                        window.location.href = RENDER_URL;
+                    })
+                    .catch(() => {});
+            }
+        }, 4000);
+    </script>
+</body>
+</html>
+
