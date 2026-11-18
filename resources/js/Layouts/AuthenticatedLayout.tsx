@@ -67,7 +67,7 @@ export default function Authenticated({
     return (
         <div className="min-h-screen bg-gray-100">
 
-            <nav className="border-b border-gray-100 bg-white text-[#9D2449]">
+            <nav className="border-b border-black/10 bg-institucional shadow-md text-white">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                     <div className="flex h-16 justify-between">
                         <div className="flex">
@@ -79,7 +79,7 @@ export default function Authenticated({
                 : route('dashboard')
         }
     >
-        <ApplicationLogo className="block h-19 w-auto fill-current text-gray-800" />
+        <ApplicationLogo className="block h-10 w-auto brightness-0 invert drop-shadow-sm" />
     </Link>
                             </div>
 
@@ -119,7 +119,6 @@ export default function Authenticated({
                                     <NavLink 
                                     href={route('catalogos.index')} 
                                     active={route().current('catalogos.index')}
-                                    className={route().current('catalogos.index') ? 'text-[#9D2449] border-[#9D2449]' : ''}
                                     >
                                     Catálogos
                                     </NavLink>
@@ -134,7 +133,7 @@ export default function Authenticated({
                                         <span className="inline-flex rounded-md">
                                             <button
                                                 type="button"
-                                                className="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-institucional-hover transition duration-150 ease-in-out hover:text-institucional focus:outline-none"
+                                                className="inline-flex items-center rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-sm font-medium leading-4 text-white transition duration-150 ease-in-out hover:bg-white/20 focus:outline-none"
                                             >
                                                 {user.name}
 
@@ -179,7 +178,7 @@ export default function Authenticated({
                                         (previousState) => !previousState,
                                     )
                                 }
-                                className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-none"
+                                className="inline-flex items-center justify-center rounded-md p-2 text-white/80 transition duration-150 ease-in-out hover:bg-white/10 hover:text-white focus:bg-white/10 focus:text-white focus:outline-none"
                             >
                                 <svg
                                     className="h-6 w-6"
@@ -267,12 +266,12 @@ export default function Authenticated({
 
                     </div>
 
-                    <div className="border-t border-gray-200 pb-1 pt-4">
+                    <div className="border-t border-white/20 pb-1 pt-4">
                         <div className="px-4">
-                            <div className="text-base font-medium text-gray-800">
+                            <div className="text-base font-medium text-white">
                                 {user.name}
                             </div>
-                            <div className="text-sm font-medium text-gray-500">
+                            <div className="text-sm font-medium text-white/70">
                                 {user.email}
                             </div>
                         </div>

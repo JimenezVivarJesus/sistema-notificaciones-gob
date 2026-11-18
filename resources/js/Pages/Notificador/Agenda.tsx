@@ -2,7 +2,7 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout";
 import { Head, useForm, router, usePage } from "@inertiajs/react";
 import React, { useState, useEffect, useRef } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { Html5QrcodeScanner } from "html5-qrcode";
+import { Html5Qrcode } from "html5-qrcode";
 import axios from "axios";
 import {
     guardarVisitaOffline,
@@ -196,47 +196,87 @@ export default function Agenda({ documentos }: Props) {
         return () => clearInterval(intervalo);
     }, []);
 
-    // Efecto para inicializar el escáner de QR cuando isScanning es true
+    // Efecto para inicializar el escáner de QR directamente con la cámara trasera
     useEffect(() => {
-        let scanner: Html5QrcodeScanner | null = null;
+        let html5QrCode: Html5Qrcode | null = null;
+        let isMounted = true;
 
         if (isScanning) {
-            scanner = new Html5QrcodeScanner(
-                "reader",
-                {
-                    fps: 10,
-                    qrbox: { width: 250, height: 150 },
-                },
-                false,
-            );
+            html5QrCode = new Html5Qrcode("reader");
 
-            scanner.render(
-                (decodedText) => {
-                    setBusqueda(decodedText);
-                    setIsScanning(false);
-                    scanner?.clear();
-                    toast.success(`Código detectado: ${decodedText}`);
+            const qrCodeSuccessCallback = (decodedText: string) => {
+                setBusqueda(decodedText);
+                toast.success(`Código detectado: ${decodedText}`);
 
-                    const docCoincidente = docsList.find(
-                        (d) =>
-                            d.numero_control === decodedText ||
-                            d.numero_oficio === decodedText,
+                const docCoincidente = docsList.find(
+                    (d) =>
+                        d.numero_control === decodedText ||
+                        d.numero_oficio === decodedText,
+                );
+                if (docCoincidente) {
+                    setDocAbiertoId(docCoincidente.id);
+                }
+
+                setIsScanning(false);
+            };
+
+            const config = {
+                fps: 10,
+                qrbox: { width: 250, height: 150 },
+                aspectRatio: 1.0,
+            };
+
+            const startScanner = async () => {
+                try {
+                    // Intento 1: Cámara trasera (ideal para teléfonos y tablets)
+                    await html5QrCode!.start(
+                        { facingMode: "environment" },
+                        config,
+                        qrCodeSuccessCallback,
+                        () => {}
                     );
-                    if (docCoincidente) {
-                        setDocAbiertoId(docCoincidente.id);
+                } catch (err) {
+                    if (!isMounted) return;
+                    console.warn("No se pudo iniciar cámara trasera, probando con cámara por defecto:", err);
+                    try {
+                        // Intento 2: Cámara por defecto (para computadoras / laptops con webcam)
+                        await html5QrCode!.start(
+                            { facingMode: "user" },
+                            config,
+                            qrCodeSuccessCallback,
+                            () => {}
+                        );
+                    } catch (err2) {
+                        if (!isMounted) return;
+                        console.error("Error al acceder a la cámara:", err2);
+                        toast.error("No se pudo acceder a la cámara. Revisa los permisos.");
+                        setIsScanning(false);
                     }
-                },
-                () => {},
-            );
+                }
+            };
+
+            startScanner();
         }
 
         return () => {
-            if (scanner) {
-                scanner
-                    .clear()
-                    .catch((err) =>
-                        console.error("Error al limpiar scanner", err),
-                    );
+            isMounted = false;
+            if (html5QrCode) {
+                if (html5QrCode.isScanning) {
+                    html5QrCode
+                        .stop()
+                        .then(() => {
+                            html5QrCode?.clear();
+                        })
+                        .catch((err) =>
+                            console.error("Error al detener cámara:", err)
+                        );
+                } else {
+                    try {
+                        html5QrCode.clear();
+                    } catch (e) {
+                        // Ignorar si el contenedor fue desmontado
+                    }
+                }
             }
         };
     }, [isScanning, docsList]);
@@ -362,8 +402,8 @@ export default function Agenda({ documentos }: Props) {
             <Head title="Mi Agenda de Campo" />
 
             {/* Contenedor móvil gris premium con colchón inferior para botones flotantes */}
-            <div className="mx-auto max-w-7xl w-full bg-gray-50/50 dark:bg-gray-950 min-h-screen px-4 sm:px-6 lg:px-8 py-8 space-y-6 text-xs font-semibold text-gray-500 pb-24">
-                <div className="flex justify-between items-start select-none pt-4">
+            <div className="mx-auto max-w-7xl w-full bg-gray-50/50 dark:bg-gray-950 min-h-screen px-4 sm:px-6 lg:px-8 pt-16 sm:pt-20 pb-24 space-y-6 text-xs font-semibold text-gray-500">
+                <div className="flex justify-between items-start select-none pt-4 sm:pt-6">
                     <div className="space-y-1">
                         {/* font-serif, italic y font-light simulan de forma hermosa el trazo manuscrito e institucional */}
                         <h1 className="text-3xl font-light text-gray-800 dark:text-gray-100 tracking-tight font-serif italic">
